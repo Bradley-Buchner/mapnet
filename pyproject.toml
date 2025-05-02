@@ -16,6 +16,7 @@ dependencies = [
     "bioregistry",
     "black",
     "indra",
+    "pyobo",
     "transformers[torch]==4.40.0"
 ]
 requires-python = ">=3.10,<3.11"

@@ -7,3 +7,7 @@ __pycache__/
 .venv
 .cahce
 poetry.lock
+
+
+# vim swap files 
+.*.swp
