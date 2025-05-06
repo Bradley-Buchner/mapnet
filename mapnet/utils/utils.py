@@ -12,7 +12,7 @@ def get_current_date_ymd():
     return now.strftime("%Y_%m_%d")
 
 
-def download_ontologies(
+def download_owl(
     target_ontology_train: str,
     source_ontology_train: str,
     source_ontologies_inference: list,

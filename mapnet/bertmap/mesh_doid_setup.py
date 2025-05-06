@@ -1,6 +1,6 @@
 """This will download the required ontologies, filter Mesh to primary diseases, and find mappings between the two provided in DOID"""
 
-from mapnet.bertmap import download_ontologies
+from mapnet.utils import download_owl
 from mapnet.bertmap import filter_non_diseases, filter_supplemental
 from deeponto.onto import Ontology
 import os
@@ -27,7 +27,7 @@ def get_doid_provided_maps():
 def main():
     """Main method for running this script. Made a function, since may be helpful to produce these artifacts elsewhere"""
     ## download the ontologies.
-    download_ontologies(
+    download_owl(
         target_ontology_train="mesh",
         source_ontology_train="doid",
         source_ontologies_inference=[],

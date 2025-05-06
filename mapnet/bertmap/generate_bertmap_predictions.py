@@ -15,7 +15,7 @@ import biomappings
 from biomappings.resources import append_prediction_tuples
 from bioregistry import parse_iri, get_iri
 
-from mapnet.utils import download_ontologies
+from mapnet.utils import download_owl
 
 parser = argparse.ArgumentParser(description="Train BERTMap Model")
 parser.add_argument("--config", default=DEFAULT_CONFIG_FILE, help="Path to Config File")
@@ -403,7 +403,7 @@ def inference_across_ontologies(
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    ontology_paths = download_ontologies(
+    ontology_paths = download_owl(
         target_ontology_train=args.target_ontology_train,
         source_ontology_train=args.source_ontology_train,
         source_ontologies_inference=args.source_ontologies_inference,
