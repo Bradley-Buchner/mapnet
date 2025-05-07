@@ -3,13 +3,15 @@ from mapnet.utils import format_mappings, get_novel_mappings, get_current_date_y
 import obonet
 from indra.databases import mesh_client
 
+
 def permissive_map(x):
     """a function to get the name of a given DOID entity, will return 'NO NAME FOUND', if the entity does not exist."""
     try:
         return g.nodes[x]["name"]
     except:
         return "NO NAME FOUND"
-    
+
+
 if __name__ == "__main__":
 
     g = obonet.read_obo(
@@ -21,7 +23,7 @@ if __name__ == "__main__":
         maps_path,
         separator="\t",
         has_header=False,
-        new_columns=['SrcEntity', 'TgtEntity', 'Score'],
+        new_columns=["SrcEntity", "TgtEntity", "Score"],
     )
     predicted_mappings = format_mappings(
         df=raw_maps,
