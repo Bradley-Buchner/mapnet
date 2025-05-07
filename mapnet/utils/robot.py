@@ -3,12 +3,12 @@ helper methods for using Robot when parsing and filtering ontologies
 """
 
 from bioontologies.robot import ROBOT_COMMAND
-from subprocess import check_output, check_call
-from shlex import split, join, quote
+from subprocess import check_call
+from shlex import quote
 import os
 from bioregistry import get_iri
 
-## overide bioregistries mesh map
+# override bioregistry mesh map
 prefix_map = {
     "MESH": "http://id.nlm.nih.gov/mesh/",
 }
@@ -51,7 +51,8 @@ def get_directional_onto_subset(
     subset = "descendants" if not ancestors else "ancestors"
     subset_arg = "--branch-from-term" if not ancestors else "--lower-term"
     output_path = output_path or os.path.join(
-        os.path.dirname(onto_path), subset + "_" + os.path.basename(onto_path)
+        os.path.dirname(onto_path),
+        subset + "_" + os.path.splitext(os.path.basename(onto_path))[0] + ".owl",
     )
     cmd = ROBOT_COMMAND + [
         "extract",
@@ -91,6 +92,7 @@ def get_onto_subset_from_file(
     subset_identifiers: list,
     method: str = "full",
     output_path: str = None,
+    verbose: bool = False,
 ):
     """returns a subset with all descendant (or ancestors if ancestor=True) terms of a list of terms in a given ontology from an obo file"""
     assert method in ["ancestor", "descendant", "full"]
@@ -111,7 +113,7 @@ def get_onto_subset_from_file(
             ancestors=False,
         )
     else:
-        ## get the subets in both directions and merge them
+        ## get the subsets in both directions and merge them
         get_directional_onto_subset(
             verbose=verbose,
             prefix=prefix,
@@ -133,14 +135,34 @@ def get_onto_subset_from_file(
         input_ontos = [
             os.path.join(
                 os.path.dirname(onto_path),
-                "ancestors" + "_" + os.path.basename(onto_path),
+                "ancestors"
+                + "_"
+                + os.path.splitext(os.path.basename(onto_path))[0]
+                + ".owl",
             ),
             os.path.join(
                 os.path.dirname(onto_path),
-                "descendants" + "_" + os.path.basename(onto_path),
+                "descendants"
+                + "_"
+                + os.path.splitext(os.path.basename(onto_path))[0]
+                + ".owl",
+            ),
+            os.path.join(
+                os.path.dirname(onto_path),
+                "full_subset"
+                + "_"
+                + os.path.splitext(os.path.basename(onto_path))[0]
+                + ".owl",
             ),
         ]
-        return merge_ontos(output_path=output_path, input_ontos=input_ontos)
+        merge_ontos(
+            output_path=input_ontos[2], input_ontos=input_ontos[:2], delete_inputs=True
+        )
+        convert_onto_format(
+            input_file=input_ontos[2], output_path=output_path, desired_format=".obo"
+        )
+        cmd = ["rm", quote(input_ontos[2])]
+        return check_call(cmd)
 
 
 def get_onto_subset(
