@@ -4,17 +4,49 @@ Methods for working with obo files.
 
 import pyobo
 import networkx as nx
+import os
+import bioregistry
+from shutil import copyfile
 
 
-def download_raw_obo_files(version_mappings: dict):
-    """download raw obo files for a set of reasources"""
+def download_raw_obo_files(dataset_def: dict):
+    """download raw obo files for a set of resources"""
+    version_mappings = dataset_def["resources"]
+    if "dataset_dir" in dataset_def["meta"]:
+        resource_path = dataset_def["meta"]["dataset_dir"]
+    else:
+        resource_path = "resources/"
     for prefix in version_mappings:
-        res = pyobo.get_id_name_mapping(prefix=prefix, version=version_mappings[prefix])
-        if len(res) == 0:
-            print(f"Could not get obo for {prefix} version {version_mappings[prefix]}")
+        save_dir = os.path.join(
+            resource_path, prefix, version_mappings[prefix]["version"]
+        )
+        resource_fname = os.path.join(save_dir, prefix + ".obo")
+        if not os.path.exists(resource_fname):
+            os.makedirs(save_dir, exist_ok=True)
+            print(
+                f"downloading {prefix}, version {version_mappings[prefix]['version']}"
+            )
+            if bioregistry.get_obo_download(prefix) != None:
+                print("copying from cache")
+                obo_url = bioregistry.get_obo_download(prefix)
+                pyobo_path = pyobo.ensure_path(
+                    prefix,
+                    url=obo_url,
+                    force=False,
+                    version=version_mappings[prefix]["version"],
+                )
+                copyfile(src=pyobo_path, dst=resource_fname)
+            else:
+                print("explicitly writing to obo")
+                onto = pyobo.get_ontology(
+                    prefix=prefix,
+                    version=version_mappings[prefix]["version"],
+                )
+                # explicitly save the obo files for easy access
+                onto.write_obo(resource_fname)
         else:
             print(
-                f"Sucessfully downloaded obo for {prefix} version {version_mappings[prefix]}"
+                f"{prefix}, version {version_mappings[prefix]['version']} already present at {resource_fname}"
             )
 
 
