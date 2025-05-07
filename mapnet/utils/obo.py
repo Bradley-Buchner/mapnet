@@ -19,7 +19,10 @@ def download_raw_obo_files(version_mappings: dict):
 
 
 def subset_graph(full_graph: pyobo.Obo, subset_identifiers: list):
-    """takes a default obo and outputs the network graph of a specfied subset subset. This will take both the ancestors and descendants of the class"""
+    """takes a default obo and outputs the network graph of a specfied subset subset. This will take both the ancestors and descendants of the class
+    if no subset is specfied will just return the original graph"""
+    if len(subset_identifiers) == 0:
+        return full_graph
     relations = set()
     for ref in subset_identifiers:
         relations = (

@@ -1,0 +1,81 @@
+2025-03-27 07:49:32 INFO  [main                          ] 483  in Parameters           - Reading LogMap parameters from file.
+2025-03-27 07:54:34 INFO  [main                          ] 483  in Parameters           - Reading LogMap parameters from file.
+2025-03-27 07:54:35 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:35 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:35 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:35 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:35 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:35 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:35 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:36 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:36 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:36 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:36 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:36 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:36 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:36 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:36 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:36 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:36 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:36 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:36 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:36 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:36 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:36 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:37 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:37 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:37 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:37 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:37 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:37 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:37 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:37 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:37 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:37 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:37 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:37 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:38 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:38 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:38 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:38 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:38 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:38 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:38 INFO  [main                          ] 173  in AbstractOWLParser    - URL connection input stream is compressed using gzip
+2025-03-27 07:54:38 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:38 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:38 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:38 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:39 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:39 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#inScheme -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#hasTopConcept -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#topConceptOf -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#prefLabel -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#altLabel -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#hiddenLabel -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#notation -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#note -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#changeNote -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#definition -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#editorialNote -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#example -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#historyNote -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#scopeNote -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#semanticRelation -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#broader -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#narrower -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#related -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#broaderTransitive -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#narrowerTransitive -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#member -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#memberList -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#mappingRelation -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#broadMatch -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#narrowMatch -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#relatedMatch -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#exactMatch -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 2896 in TripleHandlers       - Usage of rdf vocabulary: http://www.w3.org/2004/02/skos/core#closeMatch -> http://www.w3.org/1999/02/22-rdf-syntax-ns#type -> http://www.w3.org/1999/02/22-rdf-syntax-ns#Property
+2025-03-27 07:54:40 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:40 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples
+2025-03-27 07:54:51 INFO  [main                          ] 1307 in OWLRDFConsumer       - dumping remaining triples
+2025-03-27 07:54:51 INFO  [main                          ] 1341 in OWLRDFConsumer       - done dumping remaining triples

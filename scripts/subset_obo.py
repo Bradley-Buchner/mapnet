@@ -7,28 +7,28 @@ from mapnet.utils import subset_from_obo
 
 ## define our subsets
 subset_def = {
-    "mesh": {
-        "version": "2025",
-        "subset_identifiers": [
-            "mesh:D007239",
-            "mesh:D001520",
-            "mesh:D011579",
-            "mesh:D001523",
-            "mesh:D004191",
-        ],
-    },
+    # "mesh": {
+    #     "version": "2025",
+    #     "subset_identifiers": [
+    #         "mesh:D007239",
+    #         "mesh:D001520",
+    #         "mesh:D011579",
+    #         "mesh:D001523",
+    #         "mesh:D004191",
+    #     ],
+    # },
     "efo": {"version": "3.76.0", "subset_identifiers": ["efo:0000408"]},
-    "ncit": {"version": "25.03c", "subset_identifiers": ["ncit:C2991"]},
-    "umls": {
-        "version": "2024AB",
-        "subset_identifiers": [
-            "sty:T049",
-            "sty:T047",
-            "sty:T191",
-            "sty:T050",
-            "sty:T048",
-        ],
-    },
+    # "ncit": {"version": "25.03c", "subset_identifiers": ["ncit:C2991"]},
+    # "umls": {
+    #     "version": "2024AB",
+    #     "subset_identifiers": [
+    #         "sty:T049",
+    #         "sty:T047",
+    #         "sty:T191",
+    #         "sty:T050",
+    #         "sty:T048",
+    #     ],
+    # },
 }
 
 
