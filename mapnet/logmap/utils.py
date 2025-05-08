@@ -3,6 +3,7 @@
 import shlex
 import subprocess
 import os
+from itertools import combinations
 
 
 def build_image(tag: str = "0.01", **_):
@@ -20,7 +21,7 @@ def build_image(tag: str = "0.01", **_):
     subprocess.check_call(cmd)
 
 
-def run_container(
+def run_logmap(
     target_onto_file: str = None,
     source_onto_file: str = None,
     output_path: str = None,
@@ -90,3 +91,73 @@ def run_container(
     print(cmd)
     # run the command
     subprocess.check_call(cmd)
+
+
+def logmap_arg_factory(
+    analysis_name: str,
+    resources: dict,
+    meta: dict,
+    tag: str,
+    dataset_dir: str = None,
+    output_dir: str = None,
+    **_,
+):
+    """returns a generator of args for running logmap pairwise on a dataset"""
+    if dataset_dir is not None:
+        dataset_dir = dataset_dir
+    elif "dataset_dir" in meta:
+        dataset_dir = meta["dataset_dir"]
+    else:
+        dataset_dir = os.path.join(os.getcwd(), "resources")
+    if output_dir is not None:
+        output_dir = output_dir
+    elif "output_dir" in meta:
+        output_dir = meta["output_dir"]
+    else:
+        output_dir = os.path.join(os.getcwd(), "output", "logmap", analysis_name)
+        os.makedirs(output_dir, exist_ok=True)
+    logmap_args = {"tag": tag, "dataset_dir": dataset_dir}
+    for source, target in combinations(resources, r=2):
+        logmap_args["output_path"] = os.path.join(output_dir, f"{source}-{target}")
+        os.makedirs(logmap_args["output_path"], exist_ok=True)
+        logmap_args["source_def"] = {
+            "prefix": source,
+            "version": resources[source]["version"],
+            "subset": resources[source]["subset"],
+            "subset_name": meta["subset_dir"],
+        }
+        logmap_args["target_def"] = {
+            "prefix": target,
+            "version": resources[target]["version"],
+            "subset": resources[target]["subset"],
+            "subset_name": meta["subset_dir"],
+        }
+        yield logmap_args
+
+
+def run_logmap_pairwise(
+    analysis_name: str,
+    resources: dict,
+    meta: dict,
+    tag: str,
+    build: bool = False,
+    dataset_dir: str = None,
+    output_dir: str = None,
+    **_,
+):
+    """runs logmap pairwise over a set of resources"""
+    if build:
+        print(f"building image with tag {tag}")
+        build_image(tag=tag)
+    for logmap_arg in logmap_arg_factory(
+        analysis_name=analysis_name,
+        resources=resources,
+        meta=meta,
+        tag=tag,
+        dataset_dir=dataset_dir,
+        output_dir=output_dir,
+    ):
+        print(
+            f"Matching {logmap_arg['source_def']['prefix']} and {logmap_arg['target_def']['prefix']} with logmap"
+        )
+        run_logmap(**logmap_arg)

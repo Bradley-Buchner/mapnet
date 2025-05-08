@@ -3,6 +3,7 @@ Here we can install the raw reasources for this landscape with pyobo.
 Notes:
 - Some of these require an API key registered in pyobo
 - I am not going to download the ontologies that were marked as O in the landscape, as many of those dont have easily obtainable obo files.
+- UMLS is to large for me to do locally, so I will hold off on that until I get HPC access
 """
 
 from mapnet.utils import download_raw_obo_files

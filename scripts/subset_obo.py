@@ -1,6 +1,8 @@
-"""script for subsetting ontologies in the same way as was done in the landscape analysis and saving the ressults.
+"""script for sub setting ontologies in the same way as was done in the landscape analysis and saving the results.
 Produces the same number of classes as the MESH subset mentioned in the Semra DB Paper, and slightly more classes
-for the other reasources, since we are including the ancestor classes as well.
+for the other resources, since we are including the ancestor classes as well.
+Notes:
+    - going to hold of on the UMLS subset for now as it may be two big
 """
 
 from mapnet.utils import get_onto_subsets

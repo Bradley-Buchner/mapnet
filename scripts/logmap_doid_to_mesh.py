@@ -1,11 +1,11 @@
-""" "
+"""
 Re-run the matching of DOID to MESH using Logmap.
 """
 
 from os.path import join
 from os import getcwd
 from mapnet.utils import download_raw_obo_files, get_onto_subset
-from mapnet.logmap import build_image, run_container
+from mapnet.logmap import build_image, run_logmap
 
 tag = "0.01"
 full_mesh_obo_file = "resources/mesh-2025.obo"
@@ -55,4 +55,4 @@ if __name__ == "__main__":
     ## build image for logmap from docker file
     build_image(**logmap_args)
     ## run the matching
-    run_container(**logmap_args)
+    run_logmap(**logmap_args)
