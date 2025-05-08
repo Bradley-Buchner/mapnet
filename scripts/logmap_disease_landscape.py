@@ -1,24 +1,25 @@
 """
 Match resources for the disease landscape pairwise using logmap
 Notes:
-    - this assumes you have run `scripts/download_raw_disease_resources.py` and `scripts/subset_obo.py` to get the prerequisite data
+    - not running umls since it has high resource requirements for now
 """
 
 import os
-from mapnet.logmap import build_image, logmap_arg_factory, run_logmap_pairwise
+from mapnet.utils import download_raw_obo_files, get_onto_subsets
+from mapnet.logmap import run_logmap_pairwise
 
 ## define our subsets
 dataset_def = {
     "resources": {
         "DOID": {"version": "2025-03-03", "subset": False, "subset_identifiers": []},
-        # "EFO": {
-        #     "version": "3.76.0",
-        #     "subset": True,
-        #     "subset_identifiers": ["0000408"],
-        # },
-        # "GARD": {"version": "", "subset": False, "subset_identifiers": []},
-        # "ICD10": {"version": "2019", "subset": False, "subset_identifiers": []},
-        # "ICD11": {"version": "2025-01", "subset": False, "subset_identifiers": []},
+        "EFO": {
+            "version": "3.76.0",
+            "subset": True,
+            "subset_identifiers": ["0000408"],
+        },
+        "GARD": {"version": "", "subset": False, "subset_identifiers": []},
+        "ICD10": {"version": "2019", "subset": False, "subset_identifiers": []},
+        "ICD11": {"version": "2025-01", "subset": False, "subset_identifiers": []},
         "MESH": {
             "version": "2025",
             "subset": True,
@@ -30,14 +31,14 @@ dataset_def = {
                 "D004191",
             ],
         },
-        # "MONDO": {"version": "2025-03-04", "subset": False, "subset_identifiers": []},
-        # "NCIT": {
-        #     "version": "25.03c",
-        #     "subset": True,
-        #     "subset_identifiers": ["C2991"],
-        # },
-        # "OMIMPS": {"version": "2025-03-24", "subset": False, "subset_identifiers": []},
-        # "Orphanet": {"version": "4.6", "subset": False, "subset_identifiers": []},
+        "MONDO": {"version": "2025-03-04", "subset": False, "subset_identifiers": []},
+        "NCIT": {
+            "version": "25.03c",
+            "subset": True,
+            "subset_identifiers": ["C2991"],
+        },
+        "OMIMPS": {"version": "2025-03-24", "subset": False, "subset_identifiers": []},
+        "orphanet": {"version": "4.6", "subset": False, "subset_identifiers": []},
         # "UMLS": {
         #     "version": "2024AB",
         #     "subset": True,
@@ -55,29 +56,12 @@ dataset_def = {
         "subset_dir": "disease_subset",
     },
 }
-run_args = {"tag": "0.01", "build": True, "analysis_name": "disease_landscape"}
-logmap_args = {
-    "tag": "0.01",
-    "dataset_dir": dataset_def["meta"]["dataset_dir"],
-    "target_def": {
-        "prefix": "MESH",
-        "version": "2025",
-        "subset": True,
-        "subset_name": "disease_subset",
-    },
-    "source_def": {
-        "prefix": "DOID",
-        "version": "2025-03-03",
-        "subset": False,
-        "subset_name": "",
-    },
-}
-
+run_args = {"tag": "0.01", "build": False, "analysis_name": "disease_landscape"}
 
 if __name__ == "__main__":
-    ## build image for logmap from docker file
-    # build_image(**logmap_args)
-    ## run the matching
-    # run_container(**logmap_args)
-    # lm_args = logmap_arg_factory(**dataset_def, **run_args)
+    ## download the obo files for each resource
+    download_raw_obo_files(dataset_def=dataset_def)
+    ## subset the resources
+    get_onto_subsets(dataset_def=dataset_def, verbose=True)
+    ## run logmap on each pairwise resource
     run_logmap_pairwise(**dataset_def, **run_args)

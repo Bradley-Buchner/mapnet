@@ -188,7 +188,9 @@ def get_onto_subset(
         os.path.join(save_dir, prefix + ".obo"),
     ]
     if os.path.exists(onto_paths[4]):
-        print(f"{prefix} version {version} subset named {dataset_def['meta']['subset_dir']} already exists at {onto_paths[4]}, delete it if you want to recreate")
+        print(
+            f"{prefix} version {version} subset named {dataset_def['meta']['subset_dir']} already exists at {onto_paths[4]}, delete it if you want to recreate"
+        )
         return 1
     if method == "ancestor":
         return get_directional_onto_subset(

@@ -7,6 +7,7 @@ import networkx as nx
 import os
 import bioregistry
 from shutil import copyfile
+from pyobo.utils.path import prefix_directory_join
 
 
 def download_raw_obo_files(dataset_def: dict):
@@ -21,21 +22,24 @@ def download_raw_obo_files(dataset_def: dict):
             resource_path, prefix, version_mappings[prefix]["version"]
         )
         resource_fname = os.path.join(save_dir, prefix + ".obo")
+        print(resource_fname)
         if not os.path.exists(resource_fname):
             os.makedirs(save_dir, exist_ok=True)
             print(
                 f"downloading {prefix}, version {version_mappings[prefix]['version']}"
             )
-            if bioregistry.get_obo_download(prefix) != None:
-                print("copying from cache")
-                obo_url = bioregistry.get_obo_download(prefix)
-                pyobo_path = pyobo.ensure_path(
-                    prefix,
-                    url=obo_url,
-                    force=False,
-                    version=version_mappings[prefix]["version"],
-                )
-                copyfile(src=pyobo_path, dst=resource_fname)
+            ## check if a .obo file is already cached
+            pyobo_dir = prefix_directory_join(
+                prefix=prefix,
+                version=version_mappings[prefix]["version"],
+                ensure_exists=False,
+            )
+            if os.path.exists(pyobo_dir):
+                src_file = [x for x in os.listdir(pyobo_dir) if x.endswith(".obo")]
+                if len(src_file) != 0:
+                    src_file = os.path.join(pyobo_dir, src_file[0])
+                    print(f"copying cached file from {src_file}")
+                    copyfile(src=src_file, dst=resource_fname)
             else:
                 print("explicitly writing to obo")
                 onto = pyobo.get_ontology(
