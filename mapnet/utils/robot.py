@@ -6,11 +6,11 @@ from bioontologies.robot import ROBOT_COMMAND
 from subprocess import check_call
 from shlex import quote
 import os
-from bioregistry import get_iri
+from bioregistry import get_iri, normalize_prefix
 
 # override bioregistry mesh map
 prefix_map = {
-    "MESH": "http://id.nlm.nih.gov/mesh/",
+    "mesh": "http://id.nlm.nih.gov/mesh/",
 }
 
 SKIP_CHECK = ["EFO"]
@@ -241,6 +241,8 @@ def get_onto_subset(
 def get_onto_subsets(dataset_def: dict, method: str = "full", verbose: bool = False):
     """returns a subset with all descendant (or ancestors if ancestor=True) terms of a list of terms for a set of ontologies"""
     assert method in ["ancestor", "descendant", "full"]
+    version_mappings = {normalize_prefix(prefix):dataset_def['resources'][prefix] for prefix in dataset_def["resources"]}
+    dataset_def['resources'] = version_mappings
     for prefix in dataset_def["resources"]:
         if dataset_def["resources"][prefix]["subset"]:
             print(f"sub-setting {prefix}")

@@ -4,8 +4,10 @@ import shlex
 import subprocess
 import os
 from itertools import combinations
-
-
+from bioregistry import normalize_prefix
+import re 
+import polars as pl
+from mapnet.utils import format_mappings
 def build_image(tag: str = "0.01", **_):
     """build the logmap image with a specfied tag"""
     cmd = [
@@ -146,6 +148,8 @@ def run_logmap_pairwise(
     **_,
 ):
     """runs logmap pairwise over a set of resources"""
+    version_mappings = {normalize_prefix(prefix):resources[prefix] for prefix in resources}
+    resources = version_mappings
     if build:
         print(f"building image with tag {tag}")
         build_image(tag=tag)
@@ -157,7 +161,53 @@ def run_logmap_pairwise(
         dataset_dir=dataset_dir,
         output_dir=output_dir,
     ):
-        print(
-            f"Matching {logmap_arg['source_def']['prefix']} and {logmap_arg['target_def']['prefix']} with logmap"
-        )
-        run_logmap(**logmap_arg)
+        if logmap_arg['source_def']['prefix'] == 'mesh' or logmap_arg['target_def']['prefix'] == 'mesh':
+            print( f"Matching {logmap_arg['source_def']['prefix']} and {logmap_arg['target_def']['prefix']} with logmap"
+            )
+            run_logmap(**logmap_arg)
+
+def walk_logmap_output_dir(meta:dict=None,analysis_name:str = None,  output_dir:str = None,resources:dict = None , **_):
+    """walk the output directory and get the paths to all matching files"""
+    if output_dir is not None:
+        output_dir = output_dir
+    elif "output_dir" in meta:
+        output_dir = meta["output_dir"]
+    else:
+        output_dir = os.path.join(os.getcwd(), "output", "logmap", analysis_name)
+    for root, _, files in os.walk(output_dir):
+        for mappings in filter(lambda x : x.endswith("mappings.tsv"), files):
+            source, target = root.split('/')[-1].split('-')
+            source = normalize_prefix(source)
+            target = normalize_prefix(target)
+            yield (source, target,  os.path.join(root, mappings))
+            yield (target , source,   os.path.join(root, mappings))
+
+def format_logmap_mappings(source_prefix:str, target_prefix:str, resources:dict, mapping_path:str):
+    """format logmap mappings to be consistent with biomappings"""
+    intermediate_representation = pl.read_csv(mapping_path, separator='\t', has_header = False, new_columns=["c1", "c2", "Score"],)
+    col_names = ["TgtEntity", "SrcEntity"] if target_prefix in intermediate_representation['c1'][0].lower() else ["SrcEntity", "TgtEntity"]
+    intermediate_representation = intermediate_representation.rename({'c1':col_names[0], 'c2':col_names[1]})
+    return format_mappings(
+            df = intermediate_representation , target_prefix = target_prefix, source_prefix = source_prefix, matching_source = 'logmap', 
+            resources = resources , only_mapping_cols=True)
+
+def merge_logmap_mappings(meta:dict,analysis_name:str,  output_dir:str = None, resources:dict = None, write_dir:str=None, **_):
+    """
+    read in and merge the logmap matching files into one tsv file
+    """
+    if output_dir is not None:
+        output_dir = output_dir
+    elif "output_dir" in meta:
+        output_dir = meta["output_dir"]
+    else:
+        output_dir = os.path.join(os.getcwd(), "output", "logmap", analysis_name)
+    write_dir = write_dir or os.path.join(output_dir,  'full_matching.tsv')
+    mapping_df = None
+    for source_prefix,  target_prefix, mapping_path in walk_logmap_output_dir(output_dir = output_dir, resources = resources):
+        print(source_prefix, target_prefix, mapping_path)
+        print('-'*40)
+        if mapping_df is None:
+            mapping_df = format_logmap_mappings(source_prefix = source_prefix, target_prefix = target_prefix, mapping_path = mapping_path, resources=resources)
+        else:
+            mapping_df = mapping_df.vstack(format_logmap_mappings(source_prefix = source_prefix, target_prefix = target_prefix, mapping_path = mapping_path, resources=resources))
+    mapping_df.write_csv(write_dir, separator='\t')

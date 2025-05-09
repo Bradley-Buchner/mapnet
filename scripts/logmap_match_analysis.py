@@ -1,14 +1,11 @@
 """
-Match resources for the disease landscape pairwise using logmap
-Notes:
-    - not running umls since it has high resource requirements for now
+code for formatting the output of running logamp
+
 """
-
 import os
-from mapnet.utils import download_raw_obo_files, get_onto_subsets
-from mapnet.logmap import run_logmap_pairwise
+from mapnet.logmap.utils import merge_logmap_mappings
 
-## define our subsets
+
 dataset_def = {
     "resources": {
         "DOID": {"version": "2025-03-03", "subset": False, "subset_identifiers": []},
@@ -59,9 +56,4 @@ dataset_def = {
 run_args = {"tag": "0.01", "build": False, "analysis_name": "disease_landscape"}
 
 if __name__ == "__main__":
-    ## download the obo files for each resource
-    download_raw_obo_files(dataset_def=dataset_def)
-    ## subset the resources
-    get_onto_subsets(dataset_def=dataset_def, verbose=True)
-    # # ## run logmap on each pairwise resource
-    run_logmap_pairwise(**dataset_def, **run_args)
+    merge_logmap_mappings(**dataset_def, **run_args)

@@ -1,6 +1,8 @@
 import datetime
 import subprocess
 import os
+from pyobo import get_id_name_mapping
+from bioregistry import parse_curie, normalize_prefix
 from bioregistry.resolve import get_owl_download
 import polars as pl
 from typing import Callable
@@ -51,6 +53,34 @@ def download_owl(
         else:
             print("found {0} at {1}".format(ontology.lower(), ontology_path))
     return ontology_paths
+def get_name_from_curie(curie:str, name_maps:dict):
+    """map curies back to name"""
+    curie = curie.replace("#ORDO:", '')
+    curie = curie .replace("_", ":")
+    ids = curie.split(":")
+    if len(ids) == 1:
+        identfier = ids[0]
+        prefix = 'mesh'
+    else:
+        identfier = ids[-1]
+        prefix = normalize_prefix(ids[-2].replace("#", ''))
+    try:
+        return name_maps[prefix][identfier]
+    except:
+        print(curie, identfier, prefix)
+        return 'NO_NAME_FOUND'
+def get_name_maps(resources:dict):
+    name_maps = {}
+    for prefix in resources:
+        prefix_n = normalize_prefix(prefix)
+        prefix_id_map = get_id_name_mapping(prefix = prefix_n, version = resources[prefix]['version'])
+        if len(prefix_id_map)==0:
+            prefix_id_map = get_id_name_mapping(prefix = prefix_n+'.ordo', version = resources[prefix]['version'])
+        name_maps[prefix_n] = prefix_id_map
+
+    name_maps['hp'] = get_id_name_mapping(prefix = 'hp')
+    return name_maps
+        
 
 
 def format_mappings(
@@ -58,8 +88,7 @@ def format_mappings(
     source_prefix: str,
     target_prefix: str,
     matching_source: str,
-    source_name_func: Callable,
-    target_name_func: Callable,
+    resources:dict, 
     only_mapping_cols: bool = True,
     relation: str = "skos:exactMatch",
     match_type: str = "semapv:SemanticSimilarityThresholdMatching",
@@ -82,14 +111,20 @@ def format_mappings(
         pl.lit(match_type).alias("type"),
         pl.lit(matching_source).alias("source"),
         pl.col("Score").alias("confidence"),
-    ).with_columns(
-        pl.col("source identifier")
-        .map_elements(source_name_func, return_dtype=pl.String)
-        .alias("source name"),
-        pl.col("target identifier")
-        .map_elements(target_name_func, return_dtype=pl.String)
-        .alias("target name"),
     )
+    name_maps = get_name_maps(resources=resources)
+    name_map_func = lambda x: get_name_from_curie(x, name_maps = name_maps)
+    # try:
+    df = df.with_columns(
+    pl.col("source identifier")
+    .map_elements(name_map_func, return_dtype=pl.String)
+    .alias("source name"),
+    pl.col("target identifier")
+    .map_elements(name_map_func, return_dtype=pl.String)
+    .alias("target name"),
+)
+    # except:
+    #     import ipdb; ipdb.set_trace()
     return (
         df
         if not only_mapping_cols

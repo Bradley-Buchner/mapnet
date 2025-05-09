@@ -12,12 +12,13 @@ from pyobo.utils.path import prefix_directory_join
 
 def download_raw_obo_files(dataset_def: dict):
     """download raw obo files for a set of resources"""
-    version_mappings = dataset_def["resources"]
+    version_mappings = {bioregistry.normalize_prefix(prefix):dataset_def['resources'][prefix] for prefix in dataset_def["resources"]}
     if "dataset_dir" in dataset_def["meta"]:
         resource_path = dataset_def["meta"]["dataset_dir"]
     else:
         resource_path = "resources/"
     for prefix in version_mappings:
+        prefix = bioregistry.normalize_prefix(prefix)
         save_dir = os.path.join(
             resource_path, prefix, version_mappings[prefix]["version"]
         )
@@ -40,6 +41,14 @@ def download_raw_obo_files(dataset_def: dict):
                     src_file = os.path.join(pyobo_dir, src_file[0])
                     print(f"copying cached file from {src_file}")
                     copyfile(src=src_file, dst=resource_fname)
+                else:
+                    print("explicitly writing to obo")
+                    onto = pyobo.get_ontology(
+                        prefix=prefix,
+                        version=version_mappings[prefix]["version"],
+                    )
+                    # explicitly save the obo files for easy access
+                    onto.write_obo(resource_fname)
             else:
                 print("explicitly writing to obo")
                 onto = pyobo.get_ontology(
@@ -48,6 +57,7 @@ def download_raw_obo_files(dataset_def: dict):
                 )
                 # explicitly save the obo files for easy access
                 onto.write_obo(resource_fname)
+                    
         else:
             print(
                 f"{prefix}, version {version_mappings[prefix]['version']} already present at {resource_fname}"
