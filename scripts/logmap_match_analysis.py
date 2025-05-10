@@ -2,9 +2,9 @@
 code for formatting the output of running logamp
 
 """
+
 import os
 from mapnet.logmap.utils import merge_logmap_mappings
-
 
 dataset_def = {
     "resources": {
@@ -53,7 +53,15 @@ dataset_def = {
         "subset_dir": "disease_subset",
     },
 }
+## additional namepsaces to check for names from ###
+additional_namespaces = {
+    "hp": {"version": None},
+    "go": {"version": None},
+    "orphanet.ordo": {"version": "4.6"},
+}
 run_args = {"tag": "0.01", "build": False, "analysis_name": "disease_landscape"}
 
 if __name__ == "__main__":
-    merge_logmap_mappings(**dataset_def, **run_args)
+    df = merge_logmap_mappings(
+        additional_namespaces=additional_namespaces, **dataset_def, **run_args
+    )

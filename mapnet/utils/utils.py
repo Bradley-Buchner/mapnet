@@ -53,34 +53,42 @@ def download_owl(
         else:
             print("found {0} at {1}".format(ontology.lower(), ontology_path))
     return ontology_paths
-def get_name_from_curie(curie:str, name_maps:dict):
+
+
+def get_name_from_curie(curie: str, name_maps: dict):
     """map curies back to name"""
-    curie = curie.replace("#ORDO:", '')
-    curie = curie .replace("_", ":")
+    curie = curie.replace("#ORDO:", "")
+    curie = curie.replace("_", ":")
     ids = curie.split(":")
     if len(ids) == 1:
         identfier = ids[0]
-        prefix = 'mesh'
+        prefix = "mesh"
     else:
         identfier = ids[-1]
-        prefix = normalize_prefix(ids[-2].replace("#", ''))
+        prefix = normalize_prefix(ids[-2].replace("#", ""))
     try:
         return name_maps[prefix][identfier]
     except:
         print(curie, identfier, prefix)
-        return 'NO_NAME_FOUND'
-def get_name_maps(resources:dict):
+        return "NO_NAME_FOUND"
+
+
+def get_name_maps(resources: dict, additional_namespaces: dict = None):
+    if additional_namespaces is not None:
+        resources = resources | additional_namespaces
     name_maps = {}
     for prefix in resources:
         prefix_n = normalize_prefix(prefix)
-        prefix_id_map = get_id_name_mapping(prefix = prefix_n, version = resources[prefix]['version'])
-        if len(prefix_id_map)==0:
-            prefix_id_map = get_id_name_mapping(prefix = prefix_n+'.ordo', version = resources[prefix]['version'])
+        prefix_id_map = get_id_name_mapping(
+            prefix=prefix_n, version=resources[prefix]["version"]
+        )
+        ## if can not find a name mapping check for an ordo one
+        if len(prefix_id_map) == 0:
+            prefix_id_map = get_id_name_mapping(
+                prefix=prefix_n + ".ordo", version=resources[prefix]["version"]
+            )
         name_maps[prefix_n] = prefix_id_map
-
-    name_maps['hp'] = get_id_name_mapping(prefix = 'hp')
     return name_maps
-        
 
 
 def format_mappings(
@@ -88,7 +96,9 @@ def format_mappings(
     source_prefix: str,
     target_prefix: str,
     matching_source: str,
-    resources:dict, 
+    resources: dict,
+    additional_namespaces: dict = None,
+    undirected:bool = False,
     only_mapping_cols: bool = True,
     relation: str = "skos:exactMatch",
     match_type: str = "semapv:SemanticSimilarityThresholdMatching",
@@ -112,20 +122,19 @@ def format_mappings(
         pl.lit(matching_source).alias("source"),
         pl.col("Score").alias("confidence"),
     )
-    name_maps = get_name_maps(resources=resources)
-    name_map_func = lambda x: get_name_from_curie(x, name_maps = name_maps)
-    # try:
+    name_maps = get_name_maps(
+        resources=resources, additional_namespaces=additional_namespaces
+    )
+    name_map_func = lambda x: get_name_from_curie(x, name_maps=name_maps)
     df = df.with_columns(
-    pl.col("source identifier")
-    .map_elements(name_map_func, return_dtype=pl.String)
-    .alias("source name"),
-    pl.col("target identifier")
-    .map_elements(name_map_func, return_dtype=pl.String)
-    .alias("target name"),
-)
-    # except:
-    #     import ipdb; ipdb.set_trace()
-    return (
+        pl.col("source identifier")
+        .map_elements(name_map_func, return_dtype=pl.String)
+        .alias("source name"),
+        pl.col("target identifier")
+        .map_elements(name_map_func, return_dtype=pl.String)
+        .alias("target name"),
+    )
+    df = (
         df
         if not only_mapping_cols
         else df.select(
@@ -143,3 +152,22 @@ def format_mappings(
             ]
         )
     )
+    if undirected:
+        df = make_undirected(df)
+    return df 
+
+def make_undirected(df):
+    """add rows to a df going in the reverse direction"""
+    reversed_df = df.clone()
+    # Rename the source and target columns
+    reversed_df = reversed_df.rename({
+        "source prefix": "target prefix",
+        "source identifier": "target identifier",
+        "source name": "target name",
+        "target prefix": "source prefix",
+        "target identifier": "source identifier",
+        "target name": "source name"
+    })
+    reversed_df = reversed_df.select(df.columns)
+    return pl.concat([df, reversed_df]).unique()
+
