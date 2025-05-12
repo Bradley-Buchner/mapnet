@@ -57,15 +57,9 @@ def download_owl(
 
 def get_name_from_curie(curie: str, name_maps: dict):
     """map curies back to name"""
-    curie = curie.replace("#ORDO:", "")
-    curie = curie.replace("_", ":")
     ids = curie.split(":")
-    if len(ids) == 1:
-        identfier = ids[0]
-        prefix = "mesh"
-    else:
-        identfier = ids[-1]
-        prefix = normalize_prefix(ids[-2].replace("#", ""))
+    identfier = ids[-1]
+    prefix = normalize_prefix(ids[-2].replace("#", ""))
     try:
         return name_maps[prefix][identfier]
     except:
@@ -90,6 +84,19 @@ def get_name_maps(resources: dict, additional_namespaces: dict = None):
         name_maps[prefix_n] = prefix_id_map
     return name_maps
 
+def parse_identifier(x):
+    res = x.split(":")
+    if len(res) == 2:
+        return f'{res[-2]}:{res[-1]}'
+    elif len(res) > 2:
+        work = res[-3].strip("#").lower()
+        if work == res[-2].lower():
+            return f'{res[-2]}:{res[-1]}'
+        else:
+            return f'{res[-2].lower()}.{work}:{res[-1]}'
+    else:
+        return f'mesh:{res[-1]}'
+
 
 def format_mappings(
     df: pl.DataFrame,
@@ -108,12 +115,12 @@ def format_mappings(
         pl.col("SrcEntity")
         .str.split("/")
         .list.get(-1)
-        .str.replace("_", ":")
+        .str.replace_all("_", ":")
         .alias("source identifier"),
         pl.col("TgtEntity")
         .str.split("/")
         .list.get(-1)
-        .str.replace("_", ":")
+        .str.replace_all("_", ":")
         .alias("target identifier"),
         pl.lit(source_prefix.upper()).alias("source prefix"),
         pl.lit(target_prefix.upper()).alias("target prefix"),
@@ -122,6 +129,13 @@ def format_mappings(
         pl.lit(matching_source).alias("source"),
         pl.col("Score").alias("confidence"),
     )
+    df = df.with_columns(
+    pl.col("source identifier")
+        .map_elements(parse_identifier, return_dtype=pl.String).alias("source identifier"), 
+    pl.col("target identifier")
+    .map_elements(parse_identifier, return_dtype=pl.String).alias("target identifier")
+    )
+     
     name_maps = get_name_maps(
         resources=resources, additional_namespaces=additional_namespaces
     )

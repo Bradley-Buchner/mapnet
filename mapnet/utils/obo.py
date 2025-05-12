@@ -8,6 +8,8 @@ import os
 import bioregistry
 from shutil import copyfile
 from pyobo.utils.path import prefix_directory_join
+import polars as pl
+from mapnet.utils import get_name_maps, get_name_from_curie
 
 
 def download_raw_obo_files(dataset_def: dict):
@@ -108,3 +110,43 @@ def subset_from_obo(subset_def: dict):
         print(f"The full {prefix} graph has {len(obo.get_ids())} term")
         print(f"The {prefix} subset has {len(subset_obo.get_ids())} term")
         print("-" * 50)
+
+def format_known_mappings(df, resources:dict, additional_namespaces:dict = None):
+    """helper method for formatting a dataframe with known_mappings"""
+    if additional_namespaces:
+        normalized_resource_names = [bioregistry.normalize_prefix(x) for x in resources | additional_namespaces]
+    else:
+        normalized_resource_names = [bioregistry.normalize_prefix(x) for x in resources]
+    name_maps = get_name_maps(resources=resources, additional_namespaces=additional_namespaces)
+    name_map_func = lambda x: get_name_from_curie(x, name_maps=name_maps)
+    df = pl.from_pandas(df)
+    df = df.with_columns(
+        pl.col('subject_id').map_elements(bioregistry.normalize_curie, return_dtype=pl.String).alias('subject_id'), 
+        pl.col('object_id').map_elements(bioregistry.normalize_curie, return_dtype=pl.String).alias('object_id')
+    ).with_columns(
+        pl.col('subject_id').str.split(':').list.get(0).alias("subject_prefix"), 
+        pl.col('object_id').str.split(':').list.get(0).alias("object_prefix"), 
+    ).with_columns(
+    pl.col("subject_id")
+    .map_elements(name_map_func, return_dtype=pl.String)
+    .alias("subject_name"),
+    pl.col("object_id")
+    .map_elements(name_map_func, return_dtype=pl.String)
+    .alias("object_name"),
+    )
+    return df.filter((pl.col('subject_prefix').is_in(normalized_resource_names)) & (pl.col('object_prefix').is_in(normalized_resource_names)) & (pl.col('predicate_id').str.contains(r'Xref')) )
+def get_known_mappings_df(resources:dict, additional_namespaces:dict = None, **_):
+    """
+    get the known mappings for a set of resources
+    """
+    full_mappings_df = None
+    for prefix in resources:
+        onto = pyobo.get_ontology(prefix=prefix, version=resources[prefix]['version'], cache=False)
+        mappings_df = pyobo.get_mappings_df(onto, names=False)
+        mappings_df = format_known_mappings(df = mappings_df, resources=resources, additional_namespaces=additional_namespaces)
+        if full_mappings_df is None:
+            full_mappings_df = mappings_df
+        else:
+            full_mappings_df = full_mappings_df.vstack(mappings_df)
+    return full_mappings_df
+
