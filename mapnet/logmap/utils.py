@@ -219,7 +219,7 @@ def format_logmap_mappings(
         resources=resources,
         only_mapping_cols=True,
         additional_namespaces=additional_namespaces,
-        undirected=True
+        undirected=True,
     )
 
 
@@ -266,6 +266,10 @@ def merge_logmap_mappings(
                     additional_namespaces=additional_namespaces,
                 )
             )
+    mapping_df = mapping_df.unique()
+    ## remove rows that only differ by score, take the max ###
+    cols = mapping_df.columns
+    cols.remove("confidence")
+    mapping_df = mapping_df.group_by(cols).max()
     mapping_df.write_csv(write_dir, separator="\t")
     return mapping_df
-

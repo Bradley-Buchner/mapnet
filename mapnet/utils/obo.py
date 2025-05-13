@@ -10,11 +10,15 @@ from shutil import copyfile
 from pyobo.utils.path import prefix_directory_join
 import polars as pl
 from mapnet.utils import get_name_maps, get_name_from_curie
+from mapnet.utils.utils import sssom_to_biomappings
 
 
-def download_raw_obo_files(dataset_def: dict):
+def download_raw_obo_files(dataset_def: dict, save_mappings: bool = True):
     """download raw obo files for a set of resources"""
-    version_mappings = {bioregistry.normalize_prefix(prefix):dataset_def['resources'][prefix] for prefix in dataset_def["resources"]}
+    version_mappings = {
+        bioregistry.normalize_prefix(prefix): dataset_def["resources"][prefix]
+        for prefix in dataset_def["resources"]
+    }
     if "dataset_dir" in dataset_def["meta"]:
         resource_path = dataset_def["meta"]["dataset_dir"]
     else:
@@ -59,11 +63,30 @@ def download_raw_obo_files(dataset_def: dict):
                 )
                 # explicitly save the obo files for easy access
                 onto.write_obo(resource_fname)
-                    
         else:
             print(
                 f"{prefix}, version {version_mappings[prefix]['version']} already present at {resource_fname}"
             )
+        if save_mappings:
+            write_mappings(
+                resource_fname=resource_fname,
+                prefix=prefix,
+                version=version_mappings[prefix]["version"],
+            )
+
+
+def write_mappings(resource_fname: str, prefix: str, version: str):
+    """
+    extract and save the mappings from a .obo file.
+    """
+
+    save_path = os.path.join(os.path.dirname(resource_fname), "mappings.tsv")
+    if not os.path.exists(save_path):
+        onto = pyobo.from_obo_path(resource_fname, prefix=prefix, version=version)
+        mappings_df = onto.get_mappings_df()
+        mappings_df.to_csv(save_path, sep="\t", index=False)
+    else:
+        print(f"mappings already saved at {save_path}")
 
 
 def subset_graph(full_graph: pyobo.Obo, subset_identifiers: list):
@@ -111,42 +134,83 @@ def subset_from_obo(subset_def: dict):
         print(f"The {prefix} subset has {len(subset_obo.get_ids())} term")
         print("-" * 50)
 
-def format_known_mappings(df, resources:dict, additional_namespaces:dict = None):
+
+def format_known_mappings(
+    resource_fname: str,
+    resources: dict,
+    additional_namespaces: dict = None,
+    sssom: bool = True,
+):
     """helper method for formatting a dataframe with known_mappings"""
     if additional_namespaces:
-        normalized_resource_names = [bioregistry.normalize_prefix(x) for x in resources | additional_namespaces]
+        normalized_resource_names = [
+            bioregistry.normalize_prefix(x) for x in resources | additional_namespaces
+        ]
     else:
         normalized_resource_names = [bioregistry.normalize_prefix(x) for x in resources]
-    name_maps = get_name_maps(resources=resources, additional_namespaces=additional_namespaces)
-    name_map_func = lambda x: get_name_from_curie(x, name_maps=name_maps)
-    df = pl.from_pandas(df)
-    df = df.with_columns(
-        pl.col('subject_id').map_elements(bioregistry.normalize_curie, return_dtype=pl.String).alias('subject_id'), 
-        pl.col('object_id').map_elements(bioregistry.normalize_curie, return_dtype=pl.String).alias('object_id')
-    ).with_columns(
-        pl.col('subject_id').str.split(':').list.get(0).alias("subject_prefix"), 
-        pl.col('object_id').str.split(':').list.get(0).alias("object_prefix"), 
-    ).with_columns(
-    pl.col("subject_id")
-    .map_elements(name_map_func, return_dtype=pl.String)
-    .alias("subject_name"),
-    pl.col("object_id")
-    .map_elements(name_map_func, return_dtype=pl.String)
-    .alias("object_name"),
+    name_maps = get_name_maps(
+        resources=resources, additional_namespaces=additional_namespaces
     )
-    return df.filter((pl.col('subject_prefix').is_in(normalized_resource_names)) & (pl.col('object_prefix').is_in(normalized_resource_names)) & (pl.col('predicate_id').str.contains(r'Xref')) )
-def get_known_mappings_df(resources:dict, additional_namespaces:dict = None, **_):
+    name_map_func = lambda x: get_name_from_curie(x, name_maps=name_maps)
+    df = pl.read_csv(resource_fname, separator="\t")
+    if len(df) > 0:
+        df = df.with_columns(
+            pl.col("subject_id")
+            .map_elements(bioregistry.normalize_curie, return_dtype=pl.String)
+            .alias("subject_id"),
+            pl.col("object_id")
+            .map_elements(bioregistry.normalize_curie, return_dtype=pl.String)
+            .alias("object_id"),
+        ).with_columns(
+            pl.col("subject_id").str.split(":").list.get(0).alias("subject_prefix"),
+            pl.col("object_id").str.split(":").list.get(0).alias("object_prefix"),
+        )
+        df = df.filter(
+            (pl.col("subject_prefix").is_in(normalized_resource_names))
+            & (pl.col("object_prefix").is_in(normalized_resource_names))
+            & (pl.col("predicate_id").str.contains(r"Xref"))
+        )
+        if sssom:
+            return df
+        else:
+            return sssom_to_biomappings(
+                df, resources=resources, additional_namespaces=additional_namespaces
+            )
+
+
+def load_known_mappings_df(
+    resources: dict,
+    meta: dict,
+    additional_namespaces: dict = None,
+    sssom: bool = True,
+    **_,
+):
     """
     get the known mappings for a set of resources
     """
+    version_mappings = {
+        bioregistry.normalize_prefix(prefix): resources[prefix] for prefix in resources
+    }
+    if "dataset_dir" in meta:
+        resource_path = meta["dataset_dir"]
+    else:
+        resource_path = "resources/"
     full_mappings_df = None
-    for prefix in resources:
-        onto = pyobo.get_ontology(prefix=prefix, version=resources[prefix]['version'], cache=False)
-        mappings_df = pyobo.get_mappings_df(onto, names=False)
-        mappings_df = format_known_mappings(df = mappings_df, resources=resources, additional_namespaces=additional_namespaces)
+    for prefix in version_mappings:
+        save_dir = os.path.join(
+            resource_path, prefix, version_mappings[prefix]["version"]
+        )
+        resource_fname = os.path.join(save_dir, "mappings.tsv")
+        mappings_df = format_known_mappings(
+            resource_fname=resource_fname,
+            resources=resources,
+            additional_namespaces=additional_namespaces,
+            sssom=sssom,
+        )
+        if mappings_df is None:
+            continue
         if full_mappings_df is None:
             full_mappings_df = mappings_df
         else:
             full_mappings_df = full_mappings_df.vstack(mappings_df)
     return full_mappings_df
-

@@ -1,4 +1,5 @@
 import datetime
+import bioregistry
 import subprocess
 import os
 from pyobo import get_id_name_mapping
@@ -63,7 +64,7 @@ def get_name_from_curie(curie: str, name_maps: dict):
     try:
         return name_maps[prefix][identfier]
     except:
-        print(curie, identfier, prefix)
+        # print(curie, identfier, prefix)
         return "NO_NAME_FOUND"
 
 
@@ -77,25 +78,30 @@ def get_name_maps(resources: dict, additional_namespaces: dict = None):
             prefix=prefix_n, version=resources[prefix]["version"]
         )
         ## if can not find a name mapping check for an ordo one
-        if len(prefix_id_map) == 0:
-            prefix_id_map = get_id_name_mapping(
-                prefix=prefix_n + ".ordo", version=resources[prefix]["version"]
-            )
+        try:
+            if len(prefix_id_map) == 0:
+                prefix_id_map = get_id_name_mapping(
+                    prefix=prefix_n + ".ordo", version=resources[prefix]["version"]
+                )
+        except:
+            pass
         name_maps[prefix_n] = prefix_id_map
     return name_maps
+
 
 def parse_identifier(x):
     res = x.split(":")
     if len(res) == 2:
-        return f'{res[-2]}:{res[-1]}'
+        curie = f"{res[-2]}:{res[-1]}"
     elif len(res) > 2:
         work = res[-3].strip("#").lower()
         if work == res[-2].lower():
-            return f'{res[-2]}:{res[-1]}'
+            curie = f"{res[-2]}:{res[-1]}"
         else:
-            return f'{res[-2].lower()}.{work}:{res[-1]}'
+            curie = f"{res[-2].lower()}.{work}:{res[-1]}"
     else:
-        return f'mesh:{res[-1]}'
+        curie = f"mesh:{res[-1]}"
+    return bioregistry.normalize_curie(curie)
 
 
 def format_mappings(
@@ -105,7 +111,7 @@ def format_mappings(
     matching_source: str,
     resources: dict,
     additional_namespaces: dict = None,
-    undirected:bool = False,
+    undirected: bool = False,
     only_mapping_cols: bool = True,
     relation: str = "skos:exactMatch",
     match_type: str = "semapv:SemanticSimilarityThresholdMatching",
@@ -122,20 +128,20 @@ def format_mappings(
         .list.get(-1)
         .str.replace_all("_", ":")
         .alias("target identifier"),
-        pl.lit(source_prefix.upper()).alias("source prefix"),
-        pl.lit(target_prefix.upper()).alias("target prefix"),
         pl.lit(relation).alias("relation"),
         pl.lit(match_type).alias("type"),
         pl.lit(matching_source).alias("source"),
         pl.col("Score").alias("confidence"),
     )
     df = df.with_columns(
-    pl.col("source identifier")
-        .map_elements(parse_identifier, return_dtype=pl.String).alias("source identifier"), 
-    pl.col("target identifier")
-    .map_elements(parse_identifier, return_dtype=pl.String).alias("target identifier")
+        pl.col("source identifier")
+        .map_elements(parse_identifier, return_dtype=pl.String)
+        .alias("source identifier"),
+        pl.col("target identifier")
+        .map_elements(parse_identifier, return_dtype=pl.String)
+        .alias("target identifier"),
     )
-     
+
     name_maps = get_name_maps(
         resources=resources, additional_namespaces=additional_namespaces
     )
@@ -147,6 +153,9 @@ def format_mappings(
         pl.col("target identifier")
         .map_elements(name_map_func, return_dtype=pl.String)
         .alias("target name"),
+    ).with_columns(
+        pl.col("source identifier").str.split(":").list.get(0).alias("source prefix"),
+        pl.col("target identifier").str.split(":").list.get(0).alias("target prefix"),
     )
     df = (
         df
@@ -168,20 +177,83 @@ def format_mappings(
     )
     if undirected:
         df = make_undirected(df)
-    return df 
+    return df
+
 
 def make_undirected(df):
     """add rows to a df going in the reverse direction"""
     reversed_df = df.clone()
-    # Rename the source and target columns
-    reversed_df = reversed_df.rename({
-        "source prefix": "target prefix",
-        "source identifier": "target identifier",
-        "source name": "target name",
-        "target prefix": "source prefix",
-        "target identifier": "source identifier",
-        "target name": "source name"
-    })
-    reversed_df = reversed_df.select(df.columns)
+    # Rename the source and target columns need the spaces in case there is a source column
+    rename_dict = {
+        x: x.replace("source ", "target ")
+        for x in df.columns
+        if x.startswith("source ")
+    } | {
+        x: x.replace("target ", "source ")
+        for x in df.columns
+        if x.startswith("target ")
+    }
+    reversed_df = reversed_df.rename(rename_dict).select(df.columns)
     return pl.concat([df, reversed_df]).unique()
 
+
+def get_landscape_mappings(landscape_name: str):
+    landscape_urls = {
+        "disease": "https://zenodo.org/records/15164180/files/processed.sssom.tsv?download=1"
+    }
+    output_name = os.path.join(
+        os.getcwd(), "resources", f"semra_{landscape_name}_landscape_mappings.tsv"
+    )
+    cmd = ["wget", "-O", output_name, landscape_urls[landscape_name]]
+    subprocess.run(cmd)
+
+
+def sssom_to_biomappings(
+    df, resources: dict = None, additional_namespaces: dict = None
+):
+    """
+    convert sssom formated df to a df in biomappings format
+    """
+    df = df.with_columns(
+        pl.col("subject_id").str.split(":").list.get(0).alias("source prefix"),
+        pl.col("object_id").str.split(":").list.get(0).alias("target prefix"),
+    )
+    if "subject_label" not in df.columns:
+        if additional_namespaces:
+            normalized_resource_names = [
+                bioregistry.normalize_prefix(x)
+                for x in resources | additional_namespaces
+            ]
+        else:
+            normalized_resource_names = [
+                bioregistry.normalize_prefix(x) for x in resources
+            ]
+        name_maps = get_name_maps(
+            resources=resources, additional_namespaces=additional_namespaces
+        )
+        name_map_func = lambda x: get_name_from_curie(x, name_maps=name_maps)
+        df = df.with_columns(
+            pl.col("subject_id")
+            .map_elements(name_map_func, return_dtype=pl.String)
+            .alias("subject_label"),
+            pl.col("object_id")
+            .map_elements(name_map_func, return_dtype=pl.String)
+            .alias("object_label"),
+        )
+    return df.rename(
+        {
+            "subject_id": "source identifier",
+            "subject_label": "source name",
+            "object_id": "target identifier",
+            "object_label": "target name",
+        }
+    ).select(
+        [
+            "source identifier",
+            "source name",
+            "source prefix",
+            "target identifier",
+            "target name",
+            "target prefix",
+        ]
+    )

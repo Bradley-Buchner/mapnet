@@ -5,6 +5,7 @@ code for formatting the output of running logamp
 
 import os
 from mapnet.logmap.utils import merge_logmap_mappings
+from mapnet.utils import get_novel_mappings
 
 dataset_def = {
     "resources": {
@@ -51,6 +52,7 @@ dataset_def = {
     "meta": {
         "dataset_dir": os.path.join(os.getcwd(), "resources"),
         "subset_dir": "disease_subset",
+        "landscape": "disease",
     },
 }
 ## additional namepsaces to check for names from ###
@@ -62,6 +64,14 @@ additional_namespaces = {
 run_args = {"tag": "0.01", "build": False, "analysis_name": "disease_landscape"}
 
 if __name__ == "__main__":
-    df = merge_logmap_mappings(
+    predicted_mappings = merge_logmap_mappings(
         additional_namespaces=additional_namespaces, **dataset_def, **run_args
     )
+    evidence = get_novel_mappings(
+        predicted_mappings=predicted_mappings,
+        additional_namespaces=additional_namespaces,
+        **dataset_def,
+        **run_args,
+    )
+    # known_mappings_df = get_known_mappings_df(additional_namespaces = additional_namespaces, **dataset_def)
+    # biomappings_df = batch_load_biomappings_df(**dataset_def)

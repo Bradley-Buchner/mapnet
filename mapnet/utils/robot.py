@@ -241,8 +241,11 @@ def get_onto_subset(
 def get_onto_subsets(dataset_def: dict, method: str = "full", verbose: bool = False):
     """returns a subset with all descendant (or ancestors if ancestor=True) terms of a list of terms for a set of ontologies"""
     assert method in ["ancestor", "descendant", "full"]
-    version_mappings = {normalize_prefix(prefix):dataset_def['resources'][prefix] for prefix in dataset_def["resources"]}
-    dataset_def['resources'] = version_mappings
+    version_mappings = {
+        normalize_prefix(prefix): dataset_def["resources"][prefix]
+        for prefix in dataset_def["resources"]
+    }
+    dataset_def["resources"] = version_mappings
     for prefix in dataset_def["resources"]:
         if dataset_def["resources"][prefix]["subset"]:
             print(f"sub-setting {prefix}")
