@@ -95,6 +95,91 @@ def load_semera_landscape_df(
         )
 
 
+def repair_names_with_semra(predicted_mappings, semra_landscape_df):
+    """
+    try to find names that were missing in the pyobos in the Semra dataset
+    """
+    semra_name_map = {}
+    for row in semra_landscape_df.iter_rows(named=True):
+        semra_name_map[row["target identifier"]] = row["target name"]
+        semra_name_map[row["source identifier"]] = row["source name"]
+
+    def map_func(x):
+        if x in semra_name_map:
+            return semra_name_map[x]
+        else:
+            return "NO_NAME_FOUND"
+
+    return predicted_mappings.with_columns(
+        pl.when(pl.col("target name").eq("NO_NAME_FOUND"))
+        .then(
+            pl.col("target identifier").map_elements(map_func, return_dtype=pl.String)
+        )
+        .otherwise(pl.col("target identifier"))
+        .alias("target name"),
+        pl.when(pl.col("source name").eq("NO_NAME_FOUND"))
+        .then(
+            pl.col("source identifier").map_elements(map_func, return_dtype=pl.String)
+        )
+        .otherwise(pl.col("source identifier"))
+        .alias("source name"),
+    )
+
+
+def get_right_wrong_mappings(predictions_df, ground_truth_df):
+    """
+    finds maps that are true false or can't be classfied from ground truth df
+    """
+    joined = predictions_df.join(
+        ground_truth_df,
+        on=["source identifier", "target prefix"],
+        how="inner",
+        suffix="_b",
+    )
+    grp_cols = ["source identifier", "target prefix", "target identifier"]
+    grouped = joined.group_by(grp_cols).agg(
+        [
+            pl.col("target identifier_b").unique().alias("matched_true_ids"),
+            pl.col("target name_b").unique().alias("matched_true_names"),
+        ]
+    )
+    right_keys = grouped.filter(
+        pl.col("target identifier").is_in(pl.col("matched_true_ids"))
+    )
+    wrong_keys = grouped.filter(
+        ~pl.col("target identifier").is_in(pl.col("matched_true_ids"))
+    )
+    right = predictions_df.join(right_keys, on=grp_cols, how="inner")
+    right = right.select(
+        [
+            pl.col("source identifier"),
+            pl.col("source name"),
+            pl.col("target prefix"),
+            pl.col("target identifier"),
+            pl.col("target name"),
+            pl.col("confidence"),
+        ]
+    )
+    wrong = predictions_df.join(wrong_keys, on=grp_cols, how="inner")
+    wrong = wrong.with_columns(
+        pl.col("matched_true_ids").list.join(", ").alias("matched_true_ids"),
+        pl.col("matched_true_names").list.join(", ").alias("matched_true_names"),
+    ).select(
+        [
+            pl.col("source identifier"),
+            pl.col("source name"),
+            pl.col("target prefix"),
+            pl.col("target identifier").alias("predicted identifier"),
+            pl.col("target name").alias("predicted name"),
+            pl.col("matched_true_ids").alias("true identifier"),
+            pl.col("matched_true_names").alias("true name"),
+            pl.col("confidence"),
+        ]
+    )
+    novel = predictions_df.join(grouped, on=grp_cols, how="anti")
+    return right, wrong, novel
+
+
 def get_novel_mappings(
     predicted_mappings: pl.DataFrame,
     resources: dict,
@@ -113,7 +198,9 @@ def get_novel_mappings(
     elif "output_dir" in meta:
         output_dir = meta["output_dir"]
     else:
-        output_dir = os.path.join(os.getcwd(), "output", "logmap", analysis_name)
+        output_dir = os.path.join(
+            os.getcwd(), "output", "logmap", analysis_name, "full_analysis"
+        )
         os.makedirs(output_dir, exist_ok=True)
     ## load in evidence
     evidence = None
@@ -131,15 +218,18 @@ def get_novel_mappings(
         evidence = (
             known_mappings if (evidence is None) else evidence.vstack(known_mappings)
         )
-    # if check_semra:
-    #     semra_landscape_df = load_semera_landscape_df(landscape_name=meta['landscape'], additional_namespaces=additional_namespaces, resources=resources, sssom=False)
-    #     matched_resources = predicted_mappings['source prefix'].unique()
-    #     semra_landscape_df.filter(
-    #             (pl.col("source prefix").is_in(matched_resources))
-    #             &
-    #             (pl.col("target prefix").is_in(matched_resources))
-    #             )
-    #     return semra_landscape_df
+    if check_semra:
+        semra_landscape_df = load_semera_landscape_df(
+            landscape_name=meta["landscape"],
+            additional_namespaces=additional_namespaces,
+            resources=resources,
+            sssom=False,
+        )
+        matched_resources = predicted_mappings["source prefix"].unique()
+        semra_landscape_df = semra_landscape_df.filter(
+            (pl.col("source prefix").is_in(matched_resources))
+            & (pl.col("target prefix").is_in(matched_resources))
+        )
     ## find classes that have no name for either target or source and save them
     predicted_mappings.filter(
         (pl.col("source name").eq("NO_NAME_FOUND"))
@@ -150,54 +240,23 @@ def get_novel_mappings(
         | (pl.col("target name").eq("NO_NAME_FOUND"))
     )
     ## find classes that had mappings in the predictions and no mappings in the evidence
-    cols = predicted_mappings.columns
-    cols.remove("confidence")
-    joined = predicted_mappings.join(
-        evidence, on=["source identifier", "target prefix"], how="inner", suffix="_b"
-    )
-    grp_cols = ["source identifier", "target prefix", "target identifier"]
-    grouped = joined.group_by(grp_cols).agg(
-        [
-            pl.col("target identifier_b").unique().alias("matched_true_ids"),
-            pl.col("target name_b").unique().alias("matched_true_names"),
-        ]
-    )
-    right_keys = grouped.filter(
-        pl.col("target identifier").is_in(pl.col("matched_true_ids"))
-    )
-    wrong_keys = grouped.filter(
-        ~pl.col("target identifier").is_in(pl.col("matched_true_ids"))
-    )
-    right = predicted_mappings.join(right_keys, on=grp_cols, how="inner")
-    right = right.select(
-        [
-            pl.col("source identifier"),
-            pl.col("source name"),
-            pl.col("target prefix"),
-            pl.col("target identifier"),
-            pl.col("target name"),
-            pl.col("confidence"),
-        ]
+    right, wrong, novel = get_right_wrong_mappings(
+        predictions_df=predicted_mappings, ground_truth_df=evidence
     )
     right.write_csv(os.path.join(output_dir, "right_mappings.tsv"), separator="\t")
-    wrong = predicted_mappings.join(wrong_keys, on=grp_cols, how="inner")
-    wrong = wrong.with_columns(
-        pl.col("matched_true_ids").list.join(", ").alias("matched_true_ids"),
-        pl.col("matched_true_names").list.join(", ").alias("matched_true_names"),
-    ).select(
-        [
-            pl.col("source identifier"),
-            pl.col("source name"),
-            pl.col("target prefix"),
-            pl.col("target identifier").alias("predicted identifier"),
-            pl.col("target name").alias("predicted name"),
-            pl.col("matched_true_ids").alias("true identifier"),
-            pl.col("matched_true_names").alias("true name"),
-            pl.col("confidence"),
-        ]
-    )
     wrong.write_csv(os.path.join(output_dir, "wrong_mappings.tsv"), separator="\t")
-
-    novel = predicted_mappings.join(grouped, on=grp_cols, how="anti")
     novel.write_csv(os.path.join(output_dir, "novel_mappings.tsv"), separator="\t")
+    if check_semra:
+        right_semra, wrong_semra, novel_semra = get_right_wrong_mappings(
+            predictions_df=novel, ground_truth_df=semra_landscape_df
+        )
+        right_semra.write_csv(
+            os.path.join(output_dir, "semra_right_mappings.tsv"), separator="\t"
+        )
+        wrong_semra.write_csv(
+            os.path.join(output_dir, "semra_wrong_mappings.tsv"), separator="\t"
+        )
+        novel_semra.write_csv(
+            os.path.join(output_dir, "semra_novel_mappings.tsv"), separator="\t"
+        )
     return novel, right, wrong

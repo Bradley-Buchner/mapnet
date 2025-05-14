@@ -67,11 +67,9 @@ if __name__ == "__main__":
     predicted_mappings = merge_logmap_mappings(
         additional_namespaces=additional_namespaces, **dataset_def, **run_args
     )
-    evidence = get_novel_mappings(
+    novel, right, wrong, semra_landscape_df = get_novel_mappings(
         predicted_mappings=predicted_mappings,
         additional_namespaces=additional_namespaces,
         **dataset_def,
         **run_args,
     )
-    # known_mappings_df = get_known_mappings_df(additional_namespaces = additional_namespaces, **dataset_def)
-    # biomappings_df = batch_load_biomappings_df(**dataset_def)

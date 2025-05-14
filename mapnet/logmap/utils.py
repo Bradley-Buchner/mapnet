@@ -190,11 +190,14 @@ def walk_logmap_output_dir(
     else:
         output_dir = os.path.join(os.getcwd(), "output", "logmap", analysis_name)
     for root, _, files in os.walk(output_dir):
-        for mappings in filter(lambda x: x.endswith("mappings.tsv"), files):
-            source, target = root.split("/")[-1].split("-")
-            source = normalize_prefix(source)
-            target = normalize_prefix(target)
-            yield (source, target, os.path.join(root, mappings))
+        if root.endswith("full_analysis"):
+            continue
+        else:
+            for mappings in filter(lambda x: x.endswith("mappings.tsv"), files):
+                source, target = root.split("/")[-1].split("-")
+                source = normalize_prefix(source)
+                target = normalize_prefix(target)
+                yield (source, target, os.path.join(root, mappings))
 
 
 def format_logmap_mappings(
@@ -241,7 +244,13 @@ def merge_logmap_mappings(
         output_dir = meta["output_dir"]
     else:
         output_dir = os.path.join(os.getcwd(), "output", "logmap", analysis_name)
-    write_dir = write_dir or os.path.join(output_dir, "full_matching.tsv")
+    write_dir = write_dir or os.path.join(
+        output_dir,
+        "full_analysis",
+    )
+    os.makedirs(write_dir, exist_ok=True)
+    write_path = os.path.join(write_dir, "full_mappings.tsv")
+
     mapping_df = None
     for source_prefix, target_prefix, mapping_path in walk_logmap_output_dir(
         output_dir=output_dir, resources=resources
@@ -271,5 +280,5 @@ def merge_logmap_mappings(
     cols = mapping_df.columns
     cols.remove("confidence")
     mapping_df = mapping_df.group_by(cols).max()
-    mapping_df.write_csv(write_dir, separator="\t")
+    mapping_df.write_csv(write_path, separator="\t")
     return mapping_df
