@@ -67,7 +67,7 @@ if __name__ == "__main__":
     predicted_mappings = merge_logmap_mappings(
         additional_namespaces=additional_namespaces, **dataset_def, **run_args
     )
-    novel, right, wrong, semra_landscape_df = get_novel_mappings(
+    novel, right, wrong = get_novel_mappings(
         predicted_mappings=predicted_mappings,
         additional_namespaces=additional_namespaces,
         **dataset_def,

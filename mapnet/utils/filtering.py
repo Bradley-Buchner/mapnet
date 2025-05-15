@@ -230,6 +230,7 @@ def get_novel_mappings(
             (pl.col("source prefix").is_in(matched_resources))
             & (pl.col("target prefix").is_in(matched_resources))
         )
+        predicted_mappings = repair_names_with_semra(predicted_mappings = predicted_mappings, semra_landscape_df=semra_landscape_df)
     ## find classes that have no name for either target or source and save them
     predicted_mappings.filter(
         (pl.col("source name").eq("NO_NAME_FOUND"))
