@@ -75,7 +75,7 @@ def get_name_maps(resources: dict, additional_namespaces: dict = None):
     for prefix in resources:
         prefix_n = normalize_prefix(prefix)
         prefix_id_map = get_id_name_mapping(
-            prefix=prefix_n, version=resources[prefix]["version"]
+            prefix=prefix_n, version=resources[prefix]["version"], 
         )
         ## if can not find a name mapping check for an ordo one
         try:
@@ -90,7 +90,8 @@ def get_name_maps(resources: dict, additional_namespaces: dict = None):
 
 
 def parse_identifier(x):
-    res = x.split(":")
+    part_one, part_two = x.split("/")[-2:]
+    res = part_two.replace('_' , ":").split(":")
     if len(res) == 2:
         curie = f"{res[-2]}:{res[-1]}"
     elif len(res) > 2:
@@ -100,7 +101,7 @@ def parse_identifier(x):
         else:
             curie = f"{res[-2].lower()}.{work}:{res[-1]}"
     else:
-        curie = f"mesh:{res[-1]}"
+        curie = f"{part_one}:{res[-1]}"
     return bioregistry.normalize_curie(curie)
 
 
@@ -118,30 +119,19 @@ def format_mappings(
 ):
     """formats a polars dataframe of mappings for use in biomapings"""
     df = df.with_columns(
-        pl.col("SrcEntity")
-        .str.split("/")
-        .list.get(-1)
-        .str.replace_all("_", ":")
-        .alias("source identifier"),
-        pl.col("TgtEntity")
-        .str.split("/")
-        .list.get(-1)
-        .str.replace_all("_", ":")
-        .alias("target identifier"),
         pl.lit(relation).alias("relation"),
         pl.lit(match_type).alias("type"),
         pl.lit(matching_source).alias("source"),
         pl.col("Score").alias("confidence"),
     )
     df = df.with_columns(
-        pl.col("source identifier")
+        pl.col("SrcEntity")
         .map_elements(parse_identifier, return_dtype=pl.String)
         .alias("source identifier"),
-        pl.col("target identifier")
+        pl.col("TgtEntity")
         .map_elements(parse_identifier, return_dtype=pl.String)
         .alias("target identifier"),
     )
-
     name_maps = get_name_maps(
         resources=resources, additional_namespaces=additional_namespaces
     )
@@ -219,15 +209,6 @@ def sssom_to_biomappings(
         pl.col("object_id").str.split(":").list.get(0).alias("target prefix"),
     )
     if "subject_label" not in df.columns:
-        if additional_namespaces:
-            normalized_resource_names = [
-                bioregistry.normalize_prefix(x)
-                for x in resources | additional_namespaces
-            ]
-        else:
-            normalized_resource_names = [
-                bioregistry.normalize_prefix(x) for x in resources
-            ]
         name_maps = get_name_maps(
             resources=resources, additional_namespaces=additional_namespaces
         )

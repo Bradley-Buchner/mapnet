@@ -44,9 +44,10 @@ def load_biomappings_df(target_prefix: str, source_prefix: str):
     return make_undirected(df)
 
 
-def batch_load_biomappings_df(resources: dict, **_):
+def batch_load_biomappings_df(matched_resources: dict, **_):
     full_df = None
-    for source_prefix, target_prefix in combinations(resources, r=2):
+    print(matched_resources)
+    for source_prefix, target_prefix in combinations(matched_resources, r=2):
         df = load_biomappings_df(
             target_prefix=target_prefix, source_prefix=source_prefix
         )
@@ -109,19 +110,18 @@ def repair_names_with_semra(predicted_mappings, semra_landscape_df):
             return semra_name_map[x]
         else:
             return "NO_NAME_FOUND"
-
     return predicted_mappings.with_columns(
         pl.when(pl.col("target name").eq("NO_NAME_FOUND"))
         .then(
             pl.col("target identifier").map_elements(map_func, return_dtype=pl.String)
         )
-        .otherwise(pl.col("target identifier"))
+        .otherwise(pl.col("target name"))
         .alias("target name"),
         pl.when(pl.col("source name").eq("NO_NAME_FOUND"))
         .then(
             pl.col("source identifier").map_elements(map_func, return_dtype=pl.String)
         )
-        .otherwise(pl.col("source identifier"))
+        .otherwise(pl.col("source name"))
         .alias("source name"),
     )
 
@@ -204,8 +204,9 @@ def get_novel_mappings(
         os.makedirs(output_dir, exist_ok=True)
     ## load in evidence
     evidence = None
+    matched_resources = predicted_mappings["source prefix"].unique()
     if check_biomappings:
-        evidence = batch_load_biomappings_df(resources=resources)
+        evidence = batch_load_biomappings_df(matched_resources=matched_resources)
     if check_known_mappings:
         known_mappings = make_undirected(
             load_known_mappings_df(
@@ -224,11 +225,6 @@ def get_novel_mappings(
             additional_namespaces=additional_namespaces,
             resources=resources,
             sssom=False,
-        )
-        matched_resources = predicted_mappings["source prefix"].unique()
-        semra_landscape_df = semra_landscape_df.filter(
-            (pl.col("source prefix").is_in(matched_resources))
-            & (pl.col("target prefix").is_in(matched_resources))
         )
         predicted_mappings = repair_names_with_semra(predicted_mappings = predicted_mappings, semra_landscape_df=semra_landscape_df)
     ## find classes that have no name for either target or source and save them
