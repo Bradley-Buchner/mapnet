@@ -1,13 +1,2 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-
-# Distribution / packaging
-*.egg-info/
-.gitattributes
-.venv
-.cahce
-poetry.lock
-
-
-# vim swap files 
-.*.swp
+*.token
+./output/*

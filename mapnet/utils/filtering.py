@@ -8,7 +8,7 @@ import os
 import subprocess
 
 
-def load_biomappings_df(target_prefix: str, source_prefix: str):
+def load_biomappings_df(target_prefix: str, source_prefix: str, undirected:bool = True):
     """return a polars data frame with the mappings from biomapping for two given ontologies."""
     df = (
         (
@@ -41,7 +41,10 @@ def load_biomappings_df(target_prefix: str, source_prefix: str):
             ]
         )
     )
-    return make_undirected(df)
+    if undirected:
+        return make_undirected(df)
+    else:
+        return df
 
 
 def batch_load_biomappings_df(matched_resources: dict, **_):
