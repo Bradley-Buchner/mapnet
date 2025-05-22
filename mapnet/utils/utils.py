@@ -75,7 +75,8 @@ def get_name_maps(resources: dict, additional_namespaces: dict = None):
     for prefix in resources:
         prefix_n = normalize_prefix(prefix)
         prefix_id_map = get_id_name_mapping(
-            prefix=prefix_n, version=resources[prefix]["version"], 
+            prefix=prefix_n,
+            version=resources[prefix]["version"],
         )
         ## if can not find a name mapping check for an ordo one
         try:
@@ -91,7 +92,7 @@ def get_name_maps(resources: dict, additional_namespaces: dict = None):
 
 def parse_identifier(x):
     part_one, part_two = x.split("/")[-2:]
-    res = part_two.replace('_' , ":").split(":")
+    res = part_two.replace("_", ":").split(":")
     if len(res) == 2:
         curie = f"{res[-2]}:{res[-1]}"
     elif len(res) > 2:
@@ -122,6 +123,8 @@ def format_mappings(
         pl.lit(relation).alias("relation"),
         pl.lit(match_type).alias("type"),
         pl.lit(matching_source).alias("source"),
+        # pl.lit(match_type).alias("prediction_type"),
+        # pl.lit(matching_source).alias("prediction_source"),
         pl.col("Score").alias("confidence"),
     )
     df = df.with_columns(
@@ -160,8 +163,10 @@ def format_mappings(
                 "target identifier",
                 "target name",
                 "type",
+                # "prediction_type",
                 "confidence",
                 "source",
+                # "prediction_source",
             ]
         )
     )

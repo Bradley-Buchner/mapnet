@@ -60,10 +60,10 @@ additional_namespaces = {
     "hp": {"version": None},
     "go": {"version": None},
     "orphanet.ordo": {"version": "4.6"},
-    "chebi": {"version": None}, 
+    "chebi": {"version": None},
     "hgnc": {"version": None},
-    # "ncbitaxon": {"version": None},  ## thiis one is too large and causes a crash 
-    "uberon": {"version": None},   
+    # "ncbitaxon": {"version": None},  ## thiis one is too large and causes a crash
+    "uberon": {"version": None},
 }
 run_args = {"tag": "0.01", "build": False, "analysis_name": "disease_landscape"}
 

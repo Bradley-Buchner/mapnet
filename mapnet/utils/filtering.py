@@ -8,7 +8,9 @@ import os
 import subprocess
 
 
-def load_biomappings_df(target_prefix: str, source_prefix: str, undirected:bool = True):
+def load_biomappings_df(
+    target_prefix: str, source_prefix: str, undirected: bool = True
+):
     """return a polars data frame with the mappings from biomapping for two given ontologies."""
     df = (
         (
@@ -113,6 +115,7 @@ def repair_names_with_semra(predicted_mappings, semra_landscape_df):
             return semra_name_map[x]
         else:
             return "NO_NAME_FOUND"
+
     return predicted_mappings.with_columns(
         pl.when(pl.col("target name").eq("NO_NAME_FOUND"))
         .then(
@@ -180,6 +183,31 @@ def get_right_wrong_mappings(predictions_df, ground_truth_df):
         ]
     )
     novel = predictions_df.join(grouped, on=grp_cols, how="anti")
+    ## make sure that wrongs are symmetrical
+    recovered_wrong = novel.join(
+        wrong,
+        left_on=["source identifier", "target identifier"],
+        right_on=["predicted identifier", "source identifier"],
+        how="inner",
+    ).select(
+        [
+            pl.col("source identifier"),
+            pl.col("source name"),
+            pl.col("target prefix"),
+            pl.col("target identifier").alias("predicted identifier"),
+            pl.col("target name").alias("predicted name"),
+            pl.col("true identifier"),
+            pl.col("true name"),
+            pl.col("confidence"),
+        ]
+    )
+    wrong = wrong.vstack(recovered_wrong)
+    novel = novel.join(
+        wrong,
+        left_on=["source identifier", "target identifier"],
+        right_on=["predicted identifier", "source identifier"],
+        how="anti",
+    )
     return right, wrong, novel
 
 
@@ -229,7 +257,9 @@ def get_novel_mappings(
             resources=resources,
             sssom=False,
         )
-        predicted_mappings = repair_names_with_semra(predicted_mappings = predicted_mappings, semra_landscape_df=semra_landscape_df)
+        predicted_mappings = repair_names_with_semra(
+            predicted_mappings=predicted_mappings, semra_landscape_df=semra_landscape_df
+        )
     ## find classes that have no name for either target or source and save them
     predicted_mappings.filter(
         (pl.col("source name").eq("NO_NAME_FOUND"))

@@ -41,10 +41,10 @@ def run_logmap(
             raise ValueError("must define either target_onto_file or target_def")
         else:
             target_name = (
-                target_def["prefix"] + ".obo"
+                target_def["prefix"] + ".owl"
                 if not target_def["subset"]
                 else os.path.join(
-                    target_def["subset_name"], target_def["prefix"] + ".obo"
+                    target_def["subset_name"], target_def["prefix"] + ".owl"
                 )
             )
             target_onto_file = os.path.join(
@@ -55,16 +55,16 @@ def run_logmap(
             raise ValueError("must define either source_onto_file or source_def")
         else:
             source_name = (
-                source_def["prefix"] + ".obo"
+                source_def["prefix"] + ".owl"
                 if not source_def["subset"]
                 else os.path.join(
-                    source_def["subset_name"], source_def["prefix"] + ".obo"
+                    source_def["subset_name"], source_def["prefix"] + ".owl"
                 )
             )
             source_onto_file = os.path.join(
                 source_def["prefix"], source_def["version"], source_name
             )
-    ## define the java command to run
+    # ## define the java command to run
     java_cmd = [
         "java",
         "-jar",
@@ -76,7 +76,23 @@ def run_logmap(
         f"file:///package/resources/{shlex.quote(target_onto_file)}",
         f"file:///package/resources/{shlex.quote(source_onto_file)}",
         "/package/output/",
-        "false",  # classify input ontology as well as map
+        "true",  # classify input ontology as well as map
+    ]
+    java_cmd = [
+        "java",
+        "-jar",
+        "-Xmx32g",
+        "--add-opens",
+        "java.base/java.lang=ALL-UNNAMED",
+        "/package/logmap/logmap-matcher-4.0.jar",
+        "DEBUGGER",
+        f"file:///package/resources/{shlex.quote(target_onto_file)}",
+        f"file:///package/resources/{shlex.quote(source_onto_file)}",
+        "RDF",
+        "/package/resources/logmap2_mappings.rdf",
+        "/package/output/",
+        "true",  # classify input ontology as well as map
+        "true",
     ]
     ##  define the command to run
     cmd = [
@@ -165,14 +181,8 @@ def run_logmap_pairwise(
         dataset_dir=dataset_dir,
         output_dir=output_dir,
     ):
-        if (
-            logmap_arg["source_def"]["prefix"] == "mesh"
-            or logmap_arg["target_def"]["prefix"] == "mesh"
-        ):
-            print(
-                f"Matching {logmap_arg['source_def']['prefix']} and {logmap_arg['target_def']['prefix']} with logmap"
-            )
-            run_logmap(**logmap_arg)
+
+        run_logmap(**logmap_arg)
 
 
 def walk_logmap_output_dir(
