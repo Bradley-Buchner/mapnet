@@ -41,10 +41,10 @@ def run_logmap(
             raise ValueError("must define either target_onto_file or target_def")
         else:
             target_name = (
-                target_def["prefix"] + ".owl"
+                target_def["prefix"] + ".obo"
                 if not target_def["subset"]
                 else os.path.join(
-                    target_def["subset_name"], target_def["prefix"] + ".owl"
+                    target_def["subset_name"], target_def["prefix"] + ".obo"
                 )
             )
             target_onto_file = os.path.join(
@@ -55,10 +55,10 @@ def run_logmap(
             raise ValueError("must define either source_onto_file or source_def")
         else:
             source_name = (
-                source_def["prefix"] + ".owl"
+                source_def["prefix"] + ".obo"
                 if not source_def["subset"]
                 else os.path.join(
-                    source_def["subset_name"], source_def["prefix"] + ".owl"
+                    source_def["subset_name"], source_def["prefix"] + ".obo"
                 )
             )
             source_onto_file = os.path.join(
@@ -77,22 +77,6 @@ def run_logmap(
         f"file:///package/resources/{shlex.quote(source_onto_file)}",
         "/package/output/",
         "true",  # classify input ontology as well as map
-    ]
-    java_cmd = [
-        "java",
-        "-jar",
-        "-Xmx32g",
-        "--add-opens",
-        "java.base/java.lang=ALL-UNNAMED",
-        "/package/logmap/logmap-matcher-4.0.jar",
-        "DEBUGGER",
-        f"file:///package/resources/{shlex.quote(target_onto_file)}",
-        f"file:///package/resources/{shlex.quote(source_onto_file)}",
-        "RDF",
-        "/package/resources/logmap2_mappings.rdf",
-        "/package/output/",
-        "true",  # classify input ontology as well as map
-        "true",
     ]
     ##  define the command to run
     cmd = [
@@ -139,7 +123,6 @@ def logmap_arg_factory(
     logmap_args = {"tag": tag, "dataset_dir": dataset_dir}
     for source, target in combinations(resources, r=2):
         logmap_args["output_path"] = os.path.join(output_dir, f"{source}-{target}")
-        os.makedirs(logmap_args["output_path"], exist_ok=True)
         logmap_args["source_def"] = {
             "prefix": source,
             "version": resources[source]["version"],
@@ -182,7 +165,42 @@ def run_logmap_pairwise(
         output_dir=output_dir,
     ):
 
+        os.makedirs(logmap_arg["output_path"], exist_ok=True)
         run_logmap(**logmap_arg)
+
+def run_logmap_for_target_pairs(
+    target_resource_prefix:str, 
+    analysis_name: str,
+    resources: dict,
+    meta: dict,
+    tag: str,
+    build: bool = False,
+    dataset_dir: str = None,
+    output_dir: str = None,
+    **_,
+):
+    """Runs logmap for all pairs only containing a target resource"""
+    version_mappings = {
+        normalize_prefix(prefix): resources[prefix] for prefix in resources
+    }
+    resources = version_mappings
+    if build:
+        print(f"building image with tag {tag}")
+        build_image(tag=tag)
+    for logmap_arg in logmap_arg_factory(
+        analysis_name=analysis_name,
+        resources=resources,
+        meta=meta,
+        tag=tag,
+        dataset_dir=dataset_dir,
+        output_dir=output_dir,
+    ):
+        if logmap_arg['source_def']['prefix'] == target_resource_prefix or logmap_arg['target_def']['prefix'] == target_resource_prefix:
+            os.makedirs(logmap_arg["output_path"], exist_ok=True)
+            run_logmap(**logmap_arg)
+
+
+
 
 
 def walk_logmap_output_dir(
