@@ -55,17 +55,17 @@ dataset_def = {
         "dataset_dir": os.path.join(os.getcwd(), "resources"),
         "subset_dir": "disease_subset",
         "landscape": "disease",
-        'known_mappings_path':os.path.join(os.getcwd(), 'known_mappings')
+        "known_mappings_path": os.path.join(os.getcwd(), "known_mappings"),
     },
 }
 
 bertmap_args = {
     "dataset_dir": dataset_def["meta"]["dataset_dir"],
-    'check_known_maps':True, 
-    'check_biomappings':True,
-    'train_model': True,
-    'global_matching': False,
-    'use_auxiliary_mappings':False,
+    "check_known_maps": True,
+    "check_biomappings": True,
+    "train_model": True,
+    "global_matching": False,
+    "use_auxiliary_mappings": False,
     "target_def": {
         "prefix": "MESH",
         "version": "2025",
@@ -81,4 +81,4 @@ bertmap_args = {
 }
 
 if __name__ == "__main__":
-    load_bertmap(**dataset_def,  **bertmap_args)
+    load_bertmap(**dataset_def, **bertmap_args)

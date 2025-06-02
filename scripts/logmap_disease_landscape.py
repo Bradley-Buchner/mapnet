@@ -5,13 +5,13 @@ Notes:
 """
 
 import os
-from mapnet.utils import download_raw_obo_files, get_onto_subsets
+from mapnet.utils import download_raw_obo_files, get_onto_subsets, convert_onto_format
 from mapnet.logmap import run_logmap_pairwise
 
 ## define our subsets
 dataset_def = {
     "resources": {
-        # "DOID": {"version": "2025-03-03", "subset": False, "subset_identifiers": []},
+        "DOID": {"version": "2025-03-03", "subset": False, "subset_identifiers": []},
         # "EFO": {
         #     "version": "3.76.0",
         #     "subset": True,
@@ -37,8 +37,8 @@ dataset_def = {
         #     "subset": True,
         #     "subset_identifiers": ["C2991"],
         # },
-        "OMIMPS": {"version": "2025-03-24", "subset": False, "subset_identifiers": []},
-        # "orphanet": {"version": "4.6", "subset": False, "subset_identifiers": []},
+        # "OMIMPS": {"version": "2025-03-24", "subset": False, "subset_identifiers": []},
+        "orphanet": {"version": "4.6", "subset": False, "subset_identifiers": []},
         # "UMLS": {
         #     "version": "2024AB",
         #     "subset": True,
@@ -60,8 +60,10 @@ run_args = {"tag": "0.01", "build": False, "analysis_name": "disease_landscape"}
 
 if __name__ == "__main__":
     ## download the obo files for each resource
-    download_raw_obo_files(dataset_def=dataset_def)
-    ## subset the resources
+    # download_raw_obo_files(dataset_def=dataset_def)
+    # ## subset the resources
     # get_onto_subsets(dataset_def=dataset_def, verbose=True)
     # # ## run logmap on each pairwise resource
-    # run_logmap_pairwise(**dataset_def, **run_args)
+    run_logmap_pairwise(**dataset_def, **run_args)
+    # convert_onto_format(input_file='/home/buzgalbraith/workspace/neu/mapnet/resources/doid/2025-03-03/doid.obo', desired_format='owl', output_path='/home/buzgalbraith/workspace/neu/mapnet/resources/doid/2025-03-03/doid.obo')
+    # convert_onto_format(input_file='/home/buzgalbraith/workspace/neu/mapnet/resources/doid/2025-03-03/doid.obo', desired_format='owl', output_path='/home/buzgalbraith/workspace/neu/mapnet/resources/doid/2025-03-03/doid.obo')
