@@ -9,7 +9,12 @@ import polars as pl
 from textdistance import levenshtein
 from bioregistry import normalize_curie, normalize_prefix
 import subprocess
-from mapnet.utils import download_raw_obo_files, get_onto_subsets, convert_onto_format, get_novel_mappings
+from mapnet.utils import (
+    download_raw_obo_files,
+    get_onto_subsets,
+    convert_onto_format,
+    get_novel_mappings,
+)
 from mapnet.logmap import run_logmap_for_target_pairs, merge_logmap_mappings
 
 ## define our subsets
@@ -22,7 +27,7 @@ dataset_def = {
     "meta": {
         "dataset_dir": os.path.join(os.getcwd(), "resources"),
         "subset_dir": "disease_subset",
-        "landscape": 'disease',
+        "landscape": "disease",
     },
 }
 additional_namespaces = {
@@ -33,12 +38,21 @@ additional_namespaces = {
     "hgnc": {"version": None},
     "uberon": {"version": None},
 }
-run_args = {"tag": "0.01", "build": True, "analysis_name": "mondo_matching",'target_resource_prefix':'mondo'}
+run_args = {
+    "tag": "0.01",
+    "build": True,
+    "analysis_name": "mondo_matching",
+    "target_resource_prefix": "mondo",
+}
 MONDO_REPORT_URLS = {
     "icd11": "https://raw.githubusercontent.com/monarch-initiative/mondo-ingest/refs/heads/main/src/ontology/reports/icd11foundation_mapping_status.tsv",
     "icd10": "https://raw.githubusercontent.com/monarch-initiative/mondo-ingest/refs/heads/main/src/ontology/reports/icd10who_mapping_status.tsv",
 }
-prefix_to_check = ["icd11", "icd10", ]
+prefix_to_check = [
+    "icd11",
+    "icd10",
+]
+
 
 ## helper methods
 def normalized_edit_similarity(x):
@@ -90,7 +104,7 @@ def get_mondo_report(prefix: str):
 
 def compare_to_mondo(logmap_maps, mondo_report, prefix):
     """
-    compare a mondo report to maps from logmap for a given prefix. 
+    compare a mondo report to maps from logmap for a given prefix.
     """
     logmap_maps = logmap_maps.filter(pl.col("target prefix").eq(prefix))
     joined_maps = logmap_maps.join(mondo_report, on="target identifier", how="inner")
@@ -98,6 +112,7 @@ def compare_to_mondo(logmap_maps, mondo_report, prefix):
         pl.col("is_excluded") | pl.col("is_deprecated")
     ).filter(~pl.col("is_mapped"))
     return joined_maps
+
 
 def check_mondo_against_prefix(prefix: str, logmap_maps):
     """
@@ -109,9 +124,10 @@ def check_mondo_against_prefix(prefix: str, logmap_maps):
         logmap_maps=logmap_maps, prefix=prefix, mondo_report=mondo_report
     )
 
+
 def get_novel_mondo(prefix_to_check: list):
     """
-    finds mappings from logmap that are unmatched in mondo across a set of prefixes. 
+    finds mappings from logmap that are unmatched in mondo across a set of prefixes.
     """
     mondo_reports = {}
     full_maps = None
@@ -127,6 +143,7 @@ def get_novel_mondo(prefix_to_check: list):
         else:
             full_maps = full_maps.vstack(mondo_against_prefix)
     return mondo_reports, full_maps
+
 
 def format_results(res):
     """
@@ -155,7 +172,6 @@ def format_results(res):
     res.write_csv("mondo_report.tsv", separator="\t")
 
 
-
 if __name__ == "__main__":
     ## download the obo files for each resource
     download_raw_obo_files(dataset_def=dataset_def)
@@ -178,4 +194,4 @@ if __name__ == "__main__":
     res_dict, res = get_novel_mondo(prefix_to_check=prefix_to_check)
     ## filter for only near perfect lexical matches
     res = res.filter(pl.col("edit_similarity").eq(1))
-    format_results(res = res)
+    format_results(res=res)

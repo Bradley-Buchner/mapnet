@@ -71,7 +71,7 @@ def run_logmap(
         "-Xmx32g",
         "--add-opens",
         "java.base/java.lang=ALL-UNNAMED",
-        "/package/logmap/logmap-matcher-4.0.jar",
+        "/package/logmap-matcher-4.0.jar",
         "MATCHER",
         f"file:///package/resources/{shlex.quote(target_onto_file)}",
         f"file:///package/resources/{shlex.quote(source_onto_file)}",
@@ -168,8 +168,9 @@ def run_logmap_pairwise(
         os.makedirs(logmap_arg["output_path"], exist_ok=True)
         run_logmap(**logmap_arg)
 
+
 def run_logmap_for_target_pairs(
-    target_resource_prefix:str, 
+    target_resource_prefix: str,
     analysis_name: str,
     resources: dict,
     meta: dict,
@@ -195,12 +196,12 @@ def run_logmap_for_target_pairs(
         dataset_dir=dataset_dir,
         output_dir=output_dir,
     ):
-        if logmap_arg['source_def']['prefix'] == target_resource_prefix or logmap_arg['target_def']['prefix'] == target_resource_prefix:
+        if (
+            logmap_arg["source_def"]["prefix"] == target_resource_prefix
+            or logmap_arg["target_def"]["prefix"] == target_resource_prefix
+        ):
             os.makedirs(logmap_arg["output_path"], exist_ok=True)
             run_logmap(**logmap_arg)
-
-
-
 
 
 def walk_logmap_output_dir(

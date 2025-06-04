@@ -230,3 +230,4 @@ def load_bertmap(
 
 def bertmap_inference():
     """Run inference on a single pair of ontologies using BertMap."""
+    ### TODO: Add functionality for using the model to infer matches

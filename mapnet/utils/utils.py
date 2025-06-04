@@ -68,7 +68,7 @@ def get_name_from_curie(curie: str, name_maps: dict):
         return "NO_NAME_FOUND"
 
 
-def get_name_maps(resources: dict, additional_namespaces: dict = None):
+def get_name_maps(resources: dict, additional_namespaces: dict = None, **_):
     if additional_namespaces is not None:
         resources = resources | additional_namespaces
     name_maps = {}

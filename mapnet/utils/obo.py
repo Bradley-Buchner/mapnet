@@ -214,3 +214,13 @@ def load_known_mappings_df(
         else:
             full_mappings_df = full_mappings_df.vstack(mappings_df)
     return full_mappings_df
+
+
+def normalize_dataset_def(dataset_def):
+    """normalize a dataset defention"""
+    version_mappings = {
+        bioregistry.normalize_prefix(prefix): dataset_def["resources"][prefix]
+        for prefix in dataset_def["resources"]
+    }
+    dataset_def["resources"] = version_mappings
+    return dataset_def
