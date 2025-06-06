@@ -116,6 +116,25 @@ def subset_graph_to_obo(subset_graph: nx.DiGraph, prefix: str, version: str):
     return subset_obo
 
 
+def get_network_graph(resources: dict, meta: dict, prefix: str, **_):
+    """load the network graph fora  given prefix."""
+    version = resources[prefix]["version"]
+    if resources[prefix]["subset"]:
+        subset_version = f"{prefix}_{version}_subset"
+        subset_path = os.path.join(
+            meta["dataset_dir"], prefix, version, meta["subset_dir"], f"{prefix}.obo"
+        )
+        full_graph = (
+            pyobo.from_obo_path(subset_path, prefix=prefix, version=subset_version)
+            .get_graph()
+            .get_networkx()
+        )
+    else:
+        obo = pyobo.get_ontology(prefix=prefix, version=version)
+        full_graph = obo.get_graph().get_networkx()
+    return full_graph
+
+
 def subset_from_obo(subset_def: dict):
     """saves an OBO subset of a graph given a base prefix and version as well as terms to base subset on"""
     for prefix in subset_def:

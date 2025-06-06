@@ -29,6 +29,30 @@ dataset_def = {
                 "D011579",
                 "D001523",
                 "D004191",
+                ### adding all mesh disease tree headers
+                # "D007239", # c01
+                # "D009369", # c04
+                # "D009140", # c05
+                # "D004066", # co6
+                # "D009057", # co7
+                # "D012140", # co8
+                # "D010038", # co9
+                # "D009422", # c10
+                # "D005128", # c11
+                # "D000091642", # c12
+                # "D002318", #c14
+                # "D006425", # c15
+                # "D009358", #c16
+                # "D017437", # c17
+                # "D009750", # c18
+                # "D004700", # c19
+                # "D007154", # c20
+                # "D007280", # c21
+                # "D000820", # c22
+                # "D013568", # c23
+                # "D009784", # c24
+                # "D064419", # c25
+                # "D014947", # c26
             ],
         },
         "MONDO": {"version": "2025-03-04", "subset": False, "subset_identifiers": []},
@@ -65,4 +89,4 @@ if __name__ == "__main__":
     ## subset the resources
     get_onto_subsets(dataset_def=dataset_def, verbose=True)
     # ## run logmap on each pairwise resource
-    run_logmap_pairwise(**dataset_def, **run_args)
+    # run_logmap_pairwise(**dataset_def, **run_args)

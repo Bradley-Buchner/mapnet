@@ -7,8 +7,11 @@ from bioregistry import parse_curie, normalize_prefix, normalize_curie
 from bioregistry.resolve import get_owl_download
 import polars as pl
 from typing import Callable
+import networkx as nx
+import numpy as np
 import logging
 logger = logging.getLogger(__name__)
+
 
 
 def get_current_date_ymd():
@@ -289,3 +292,85 @@ def biomappings_to_sssom(
             "object_label",
         ]
     )
+
+def make_broad_narrow_dataset(
+    known_maps: pl.DataFrame,
+    source_graph,
+    target_graph,
+    name_maps: dict,
+    max_distance: int = 1,
+    seed: int = 101,
+):
+    """makes a dataset of broad or narrow matches from a given dataset.
+    Note:
+        - distance_cutoff sets the maximum distance (ie number of edges) to use when getting ancestors or descendants
+    """
+    name_map_func = lambda x: get_name_from_curie(x, name_maps)
+    rng = np.random.default_rng(seed=seed)
+    classes = rng.integers(low=0, high=3, size=len(known_maps))
+    generated_maps = []
+    for i, row in enumerate(known_maps.iter_rows(named=True)):
+        generated_map = row.copy()
+        generated_map["class"] = classes[i]
+        original_target_identifier = row["target identifier"]
+        ## skip cases where there is a mapping to a class that is not in the target dataset
+        if original_target_identifier not in target_graph.nodes:
+            continue
+        ## zero represent exact matches
+        if generated_map["class"] == 0:
+            target_identifier = original_target_identifier
+        else:
+            ## one for broad match (ie the source term should match to a parent term)
+            if generated_map["class"] == 1:
+                # candidates = target_graph.successors(generated_map['target identifier'])
+                candidates = descendants_within_distance(
+                    target_graph,
+                    generated_map["target identifier"],
+                    max_distance=max_distance,
+                )
+            ## two for narrow match (ie the source term should be matched to a child term)
+            else:
+                # candidates = target_graph.predecessors(generated_map['target identifier'])
+                candidates = ancestors_within_distance(
+                    target_graph,
+                    generated_map["target identifier"],
+                    max_distance=max_distance,
+                )
+            ## filter candidates not in graph
+            candidates = list(filter(lambda x: x in target_graph.nodes, candidates))
+            ## pick one at random
+            if len(candidates) > 0:
+                target_identifier = candidates[
+                    rng.integers(low=0, high=len(candidates))
+                ]
+            ## if there are not valid candidates just use an exact match
+            if len(candidates) == 0:
+                target_identifier = original_target_identifier
+                generated_map["class"] = 0
+        ## update row if mapping has changed
+        if target_identifier != original_target_identifier:
+            generated_map["target identifier"] = target_identifier
+            generated_map["target name"] = name_map_func(target_identifier)
+        generated_maps.append(generated_map)
+    generated_maps_df = pl.from_records(generated_maps)
+    ## TODO: make where these are written nicer
+    generated_maps_df.write_csv(
+        "generated_maps.tsv", include_header=True, separator="\t"
+    )
+    return generated_maps_df
+
+
+def descendants_within_distance(G, source, max_distance: int = None):
+    """get all descendants of a node in a directed graph up a max distance"""
+    return {
+        child
+        for _, child in nx.bfs_edges(G, source, reverse=False, depth_limit=max_distance)
+    }
+
+
+def ancestors_within_distance(G, source, max_distance: int = None):
+    """get all ancestors of a node in a directed graph up a max distance"""
+    return {
+        child
+        for _, child in nx.bfs_edges(G, source, reverse=True, depth_limit=max_distance)
+    }
