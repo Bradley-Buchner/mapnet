@@ -293,6 +293,8 @@ def biomappings_to_sssom(
         ]
     )
 
+
+
 def make_broad_narrow_dataset(
     known_maps: pl.DataFrame,
     source_graph,
@@ -303,7 +305,7 @@ def make_broad_narrow_dataset(
 ):
     """makes a dataset of broad or narrow matches from a given dataset.
     Note:
-        - distance_cutoff sets the maximum distance (ie number of edges) to use when getting ancestors or descendants
+        - distance_cutoff sets the maximum distance (ie number of edges) to use when getting ancestors or 
     """
     name_map_func = lambda x: get_name_from_curie(x, name_maps)
     rng = np.random.default_rng(seed=seed)
@@ -351,17 +353,74 @@ def make_broad_narrow_dataset(
         if target_identifier != original_target_identifier:
             generated_map["target identifier"] = target_identifier
             generated_map["target name"] = name_map_func(target_identifier)
+        ## add  and ancestors for source to row
+        generated_map['source descendant identifiers'], generated_map['source descendant names'] = top_k_named_relations(
+            source_graph,
+            generated_map["source identifier"],
+            name_map_func, 
+            k = 3,
+            descendants=False,
+            max_distance=max_distance
+        )
+        generated_map['target descendant identifiers'], generated_map['target descendant names'] = top_k_named_relations(
+            target_graph,
+            generated_map["target identifier"],
+            name_map_func, 
+            k = 3,
+            descendants=False,
+            max_distance=max_distance
+
+        )
+        generated_map['source ancestor identifiers'], generated_map['source ancestor names'] = top_k_named_relations(
+            source_graph,
+            generated_map["source identifier"],
+            name_map_func, 
+            k = 3,
+            descendants=True,
+            max_distance=max_distance
+        )
+        generated_map['target ancestor identifiers'], generated_map['target ancestor names'] = top_k_named_relations(
+            target_graph,
+            generated_map["target identifier"],
+            name_map_func, 
+            k = 3,
+            descendants=True,
+            max_distance=max_distance
+        )
         generated_maps.append(generated_map)
     generated_maps_df = pl.from_records(generated_maps)
     ## TODO: make where these are written nicer
-    generated_maps_df.write_csv(
-        "generated_maps.tsv", include_header=True, separator="\t"
-    )
+    # generated_maps_df.write_csv(
+    #     "generated_maps.tsv", include_header=True, separator="\t"
+    # )
+    generated_maps_df.write_parquet('generated_maps.parquet')
     return generated_maps_df
 
 
+def top_k_named_relations(G, source,name_map_func, k:int = 3,max_distance:int =3, descendants = False):
+    """Returns a list of the top k ancestors or descendants for a given graph and source"""
+    if source not in G.nodes:
+        return [], []
+    candidates = [
+        child
+        for _, child in nx.bfs_edges(G, source, reverse=not descendants, depth_limit=max_distance)
+    ]
+    curies = []
+    names = []
+    added = 0
+    for candidate_curie in candidates:
+        candidate_name = name_map_func(candidate_curie)
+        if candidate_name != 'NO_NAME_FOUND':
+            added += 1
+            curies.append(candidate_curie)
+            names.append(candidate_name)
+        if added == k:
+            break
+    return curies, names
+        
+
 def descendants_within_distance(G, source, max_distance: int = None):
-    """get all descendants of a node in a directed graph up a max distance"""
+    """get all  of a node in a directed graph up a max distance"""
     return {
         child
         for _, child in nx.bfs_edges(G, source, reverse=False, depth_limit=max_distance)
