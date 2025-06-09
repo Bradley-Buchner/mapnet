@@ -172,7 +172,6 @@ def load_bertmap(
     meta: dict,
     config_path: str = None,
     check_biomappings: bool = True,
-    check_known_mappings: bool = True,
     known_map_path: str = None,
     train_model: bool = False,
     global_matching: bool = True,

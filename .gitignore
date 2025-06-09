@@ -1,2 +1,12 @@
-*.token
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Distribution / packaging
+*.egg-info/
+.gitattributes
+
+## Development 
+dev
+
+## Output
 output

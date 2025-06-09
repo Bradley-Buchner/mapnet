@@ -6,9 +6,6 @@ import os
 from mapnet.bertmap.utils import load_bertmap
 
 
-tag = "0.01"
-full_mesh_obo_file = "resources/mesh-2025.obo"
-
 dataset_def = {
     "resources": {
         "DOID": {"version": "2025-03-03", "subset": False, "subset_identifiers": []},
@@ -61,7 +58,6 @@ dataset_def = {
 
 bertmap_args = {
     "dataset_dir": dataset_def["meta"]["dataset_dir"],
-    "check_known_maps": True,
     "check_biomappings": True,
     "train_model": True,
     "global_matching": False,

@@ -5,10 +5,6 @@ logging.basicConfig(format=('%(levelname)s: [%(asctime)s] %(name)s'
                     level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
 
 # Suppress INFO-level logging from some dependencies
-# logging.getLogger('requests').setLevel(logging.ERROR)
-# logging.getLogger('urllib3').setLevel(logging.ERROR)
-# logging.getLogger('rdflib').setLevel(logging.ERROR)
-# logging.getLogger('boto3').setLevel(logging.CRITICAL)
-# logging.getLogger('botocore').setLevel(logging.CRITICAL)
+logging.getLogger('pyobo').setLevel(logging.ERROR)
 
 logger = logging.getLogger('mapnet')
