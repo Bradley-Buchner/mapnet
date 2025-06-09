@@ -7,6 +7,8 @@ from subprocess import check_call
 from shlex import quote
 import os
 from bioregistry import get_iri, normalize_prefix
+import logging
+logger = logging.getLogger(__name__)
 
 # override bioregistry mesh map
 prefix_map = {
@@ -35,7 +37,7 @@ def convert_onto_format(input_file: str, desired_format: str, output_path: str =
         "false",
         "-vvv",
     ]
-    print(cmd)
+    logger.info(cmd)
     return check_call(cmd)
 
 
@@ -67,7 +69,7 @@ def get_directional_onto_subset(
         cmd += [subset_arg, get_iri(prefix, term, prefix_map=prefix_map)]
     if verbose:
         cmd += ["-vvv"]
-    print("running", cmd)
+    logger.info("running", cmd)
     check_call(cmd)
 
 
@@ -77,10 +79,10 @@ def merge_ontos(output_path: str, input_ontos: list, delete_inputs: bool = False
     for onto in input_ontos:
         cmd += ["--input", onto]
     cmd += ["--output", output_path]
-    print("running", cmd)
+    logger.info("running", cmd)
     if delete_inputs:
         clean_cmd = ["rm"] + [onto for onto in input_ontos]
-        print(clean_cmd)
+        logger.info(clean_cmd)
         check_call(cmd)
         return check_call(clean_cmd)
     return check_call(cmd)
@@ -188,7 +190,7 @@ def get_onto_subset(
         os.path.join(save_dir, prefix + ".obo"),
     ]
     if os.path.exists(onto_paths[4]):
-        print(
+        logger.info(
             f"{prefix} version {version} subset named {dataset_def['meta']['subset_dir']} already exists at {onto_paths[4]}, delete it if you want to recreate"
         )
         return 1
@@ -248,7 +250,7 @@ def get_onto_subsets(dataset_def: dict, method: str = "full", verbose: bool = Fa
     dataset_def["resources"] = version_mappings
     for prefix in dataset_def["resources"]:
         if dataset_def["resources"][prefix]["subset"]:
-            print(f"sub-setting {prefix}")
+            logger.info(f"sub-setting {prefix}")
             get_onto_subset(
                 prefix=prefix, dataset_def=dataset_def, method=method, verbose=verbose
             )

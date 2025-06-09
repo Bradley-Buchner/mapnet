@@ -7,6 +7,8 @@ from bioregistry import parse_curie, normalize_prefix
 from bioregistry.resolve import get_owl_download
 import polars as pl
 from typing import Callable
+import logging
+logger = logging.getLogger(__name__)
 
 
 def get_current_date_ymd():
@@ -40,7 +42,7 @@ def download_owl(
         ontology_path = os.path.join(ontologies_path, ontology.lower() + ext)
         ontology_paths[ontology.lower()] = ontology_path
         if not os.path.isfile(ontology_path):
-            print("Downloading {0}".format(ontology))
+            logger.info("Downloading {0}".format(ontology))
             cmd = ["wget", "-O", ontology_path, url]
             subprocess.run(cmd)
             ## mesh is large so download the zip and unzip it.
@@ -52,7 +54,7 @@ def download_owl(
                 cmd_3 = ["mv", ontology_path + "_dir/MESH.ttl", ontology_path]
                 subprocess.run(cmd_3)
         else:
-            print("found {0} at {1}".format(ontology.lower(), ontology_path))
+            logger.info("found {0} at {1}".format(ontology.lower(), ontology_path))
     return ontology_paths
 
 
@@ -64,7 +66,6 @@ def get_name_from_curie(curie: str, name_maps: dict):
     try:
         return name_maps[prefix][identfier]
     except:
-        # print(curie, identfier, prefix)
         return "NO_NAME_FOUND"
 
 

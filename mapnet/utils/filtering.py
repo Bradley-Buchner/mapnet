@@ -6,6 +6,8 @@ from mapnet.utils.utils import make_undirected, sssom_to_biomappings
 from mapnet.utils.obo import load_known_mappings_df
 import os
 import subprocess
+import logging
+logger = logging.getLogger(__name__)
 
 
 def load_biomappings_df(
@@ -51,7 +53,7 @@ def load_biomappings_df(
 
 def batch_load_biomappings_df(matched_resources: dict, **_):
     full_df = None
-    print(matched_resources)
+    logger.info(matched_resources)
     for source_prefix, target_prefix in combinations(matched_resources, r=2):
         df = load_biomappings_df(
             target_prefix=target_prefix, source_prefix=source_prefix

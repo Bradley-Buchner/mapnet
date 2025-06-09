@@ -1,5 +1,8 @@
 """utility functions for bertmap"""
 
+import logging
+logger = logging.getLogger(__name__)
+
 import os
 from deeponto.align.bertmap import DEFAULT_CONFIG_FILE, BERTMapPipeline
 from deeponto.onto import Ontology
@@ -205,23 +208,23 @@ def load_bertmap(
     if not train_model:
         config.global_matching.enabled = False
         if not os.path.isdir("bertmap"):
-            print("downloading model from hugging face")
+            logger.info("downloading model from hugging face")
             snapshot_download(
                 repo_id="buzgalbraith/BERTMAP-BioMappings", local_dir="./"
             )
         else:
-            print("Model found at bertmap")
+            logger.info("Model found at bertmap")
     source_fname = get_resource_file_name(
         resource_def=source_def, resource_path=resource_path
     )
-    print("loading source onto")
+    logger.info("loading source onto")
     source_onto = Ontology(source_fname)
-    print("loading target onto")
+    logger.info("loading target onto")
     target_fname = get_resource_file_name(
         resource_def=target_def, resource_path=resource_path
     )
     target_onto = Ontology(target_fname)
-    print("loading model")
+    logger.info("loading model")
     return BERTMapPipeline(source_onto, target_onto, config)
 
 

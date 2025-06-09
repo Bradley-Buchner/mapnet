@@ -11,7 +11,9 @@ from pyobo.utils.path import prefix_directory_join
 import polars as pl
 from mapnet.utils import get_name_maps, get_name_from_curie
 from mapnet.utils.utils import sssom_to_biomappings
+import logging 
 
+logger = logging.getLogger(__name__)
 
 def download_raw_obo_files(dataset_def: dict, save_mappings: bool = True):
     """download raw obo files for a set of resources"""
@@ -29,10 +31,9 @@ def download_raw_obo_files(dataset_def: dict, save_mappings: bool = True):
             resource_path, prefix, version_mappings[prefix]["version"]
         )
         resource_fname = os.path.join(save_dir, prefix + ".obo")
-        print(resource_fname)
         if not os.path.exists(resource_fname):
             os.makedirs(save_dir, exist_ok=True)
-            print(
+            logger.info(
                 f"downloading {prefix}, version {version_mappings[prefix]['version']}"
             )
             ## check if a .obo file is already cached
@@ -45,10 +46,10 @@ def download_raw_obo_files(dataset_def: dict, save_mappings: bool = True):
                 src_file = [x for x in os.listdir(pyobo_dir) if x.endswith(".obo")]
                 if len(src_file) != 0:
                     src_file = os.path.join(pyobo_dir, src_file[0])
-                    print(f"copying cached file from {src_file}")
+                    logger.info(f"copying cached file from {src_file}")
                     copyfile(src=src_file, dst=resource_fname)
                 else:
-                    print("explicitly writing to obo")
+                    logger.info("explicitly writing to obo")
                     onto = pyobo.get_ontology(
                         prefix=prefix,
                         version=version_mappings[prefix]["version"],
@@ -56,7 +57,7 @@ def download_raw_obo_files(dataset_def: dict, save_mappings: bool = True):
                     # explicitly save the obo files for easy access
                     onto.write_obo(resource_fname)
             else:
-                print("explicitly writing to obo")
+                logger.info("explicitly writing to obo")
                 onto = pyobo.get_ontology(
                     prefix=prefix,
                     version=version_mappings[prefix]["version"],
@@ -64,7 +65,7 @@ def download_raw_obo_files(dataset_def: dict, save_mappings: bool = True):
                 # explicitly save the obo files for easy access
                 onto.write_obo(resource_fname)
         else:
-            print(
+            logger.info(
                 f"{prefix}, version {version_mappings[prefix]['version']} already present at {resource_fname}"
             )
         if save_mappings:
@@ -86,7 +87,7 @@ def write_mappings(resource_fname: str, prefix: str, version: str):
         mappings_df = onto.get_mappings_df()
         mappings_df.to_csv(save_path, sep="\t", index=False)
     else:
-        print(f"mappings already saved at {save_path}")
+        logger.info(f"mappings already saved at {save_path}")
 
 
 def subset_graph(full_graph: pyobo.Obo, subset_identifiers: list):
@@ -120,19 +121,19 @@ def subset_from_obo(subset_def: dict):
     for prefix in subset_def:
         version = subset_def[prefix]["version"]
         subset_identifiers = subset_def[prefix]["subset_identifiers"]
-        print("loading obo")
+        logger.info("loading obo")
         obo = pyobo.get_ontology(prefix=prefix, version=version)
-        print("loading graph")
+        logger.info("loading graph")
         full_graph = obo.get_graph().get_networkx()
-        print("subseting graph")
+        logger.info("subseting graph")
         sg = subset_graph(full_graph=full_graph, subset_identifiers=subset_identifiers)
-        print("writing res")
+        logger.info("writing res")
         subset_obo = subset_graph_to_obo(
             subset_graph=sg, prefix=prefix, version=version
         )
-        print(f"The full {prefix} graph has {len(obo.get_ids())} term")
-        print(f"The {prefix} subset has {len(subset_obo.get_ids())} term")
-        print("-" * 50)
+        logger.info(f"The full {prefix} graph has {len(obo.get_ids())} term")
+        logger.info(f"The {prefix} subset has {len(subset_obo.get_ids())} term")
+        logger.info("-" * 50)
 
 
 def format_known_mappings(

@@ -8,6 +8,8 @@ from bioregistry import normalize_prefix
 import re
 import polars as pl
 from mapnet.utils import format_mappings
+import logging
+logger = logging.getLogger(__name__)
 
 
 def build_image(tag: str = "0.01", **_):
@@ -21,7 +23,7 @@ def build_image(tag: str = "0.01", **_):
         "-t",
         f"logmap:{shlex.quote(tag)}",
     ]
-    print(f"running, {cmd}")
+    logger.info(f"running, {cmd}")
     subprocess.check_call(cmd)
 
 
@@ -92,7 +94,7 @@ def run_logmap(
         "-c",
         shlex.join(java_cmd),  ## add the java command as a string
     ]
-    print(cmd)
+    logger.info(cmd)
     # run the command
     subprocess.check_call(cmd)
 
@@ -154,7 +156,7 @@ def run_logmap_pairwise(
     }
     resources = version_mappings
     if build:
-        print(f"building image with tag {tag}")
+        logger.info(f"building image with tag {tag}")
         build_image(tag=tag)
     for logmap_arg in logmap_arg_factory(
         analysis_name=analysis_name,
@@ -186,7 +188,7 @@ def run_logmap_for_target_pairs(
     }
     resources = version_mappings
     if build:
-        print(f"building image with tag {tag}")
+        logger.info(f"building image with tag {tag}")
         build_image(tag=tag)
     for logmap_arg in logmap_arg_factory(
         analysis_name=analysis_name,
@@ -284,8 +286,8 @@ def merge_logmap_mappings(
     for source_prefix, target_prefix, mapping_path in walk_logmap_output_dir(
         output_dir=output_dir, resources=resources
     ):
-        print(source_prefix, target_prefix, mapping_path)
-        print("-" * 40)
+        logger.info(source_prefix, target_prefix, mapping_path)
+        logger.info("-" * 40)
         if mapping_df is None:
             mapping_df = format_logmap_mappings(
                 source_prefix=source_prefix,
