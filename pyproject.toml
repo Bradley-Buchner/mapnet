@@ -7,13 +7,17 @@ name = "mapnet"
 version = "2025.0.0"
 dependencies = [
     "jpype1",
+    "polars",
     "torch",
     "torchvision",
     "torchaudio",
     "deeponto",
     "biomappings",
     "bioregistry",
-    "black"
+    "black",
+    "indra",
+    "pyobo",
+    "transformers[torch]==4.40.0"
 ]
 requires-python = ">=3.10,<3.11"
 
@@ -25,4 +29,3 @@ license-files = ["LICENSE"]
 Homepage = "https://github.com/gyorilab/mapnet"
 Repository = "https://github.com/gyorilab/mapnet.git"
 "Bug Tracker" = "https://github.com/gyorilab/mapnet/issues"
-
