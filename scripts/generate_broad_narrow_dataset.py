@@ -1,17 +1,13 @@
-import os
-import networkx as nx
+from itertools import combinations
 import polars as pl
 from mapnet.utils import (
     load_known_mappings_df,
     normalize_dataset_def,
-    get_name_from_curie,
     get_name_maps,
     get_network_graph,
     make_broad_narrow_dataset,
 )
-import pyobo
-import numpy as np
-import random
+import os 
 
 dataset_def = {
     "resources": {
@@ -94,24 +90,32 @@ if __name__ == "__main__":
     known_maps = load_known_mappings_df(
         **dataset_def, **run_args, additional_namespaces=additional_namespaces
     )
-    print("done")
-    ## now lets filter this for mappings from mondo to mesh
-    known_maps = known_maps.filter(pl.col("source prefix").eq("mondo"))
-    known_maps = known_maps.filter(pl.col("target prefix").eq("mesh"))
-    ## lets read in the network graph for both
-    dataset_def = normalize_dataset_def(dataset_def)
-    source_graph = get_network_graph(**dataset_def, prefix="mondo")
-    target_graph = get_network_graph(**dataset_def, prefix="mesh")
+    dataset_def = normalize_dataset_def(dataset_def=dataset_def)
+    previous_source_prefix, previous_target_prefix = None, None
+    network_graphs = {x:get_network_graph(**dataset_def, prefix=x) for x in dataset_def['resources']}
+    for source_prefix, target_prefix in combinations(dataset_def['resources'], r = 2):
+        ## now lets filter this for mappings from mondo to mesh
+        k_maps = known_maps.clone()
+        k_maps = k_maps.filter(pl.col("source prefix").eq(source_prefix))
+        k_maps = k_maps.filter(pl.col("target prefix").eq(target_prefix))
+        ## lets read in the network graph for both
+        # if previous_source_prefix != source_prefix:
+        #     source_graph = get_network_graph(**dataset_def, prefix=source_prefix)
+        # if previous_target_prefix != target_prefix:
+        #     target_graph = get_network_graph(**dataset_def, prefix=target_prefix)
+        source_graph = network_graphs[source_prefix]
+        target_graph = network_graphs[target_prefix]
+        name_maps = get_name_maps(
+            **dataset_def, additional_namespaces=additional_namespaces
+        )
 
-    name_maps = get_name_maps(
-        **dataset_def, additional_namespaces=additional_namespaces
-    )
-
-    max_distance = 3
-    res = make_broad_narrow_dataset(
-        known_maps=known_maps,
-        source_graph=source_graph,
-        target_graph=target_graph,
-        name_maps=name_maps,
-        max_distance=max_distance,
-    )
+        max_distance = 3
+        res = make_broad_narrow_dataset(
+            known_maps=k_maps,
+            source_graph=source_graph,
+            target_graph=target_graph,
+            name_maps=name_maps,
+            max_distance=max_distance,
+        )
+        previous_target_prefix = target_prefix
+        previous_source_prefix = source_prefix

@@ -1,9 +1,8 @@
-from transformers import TrainingArguments, AutoModelForSequenceClassification, Trainer, AutoTokenizer, AutoConfig, AutoModel
+from transformers import TrainingArguments, AutoModelForSequenceClassification, Trainer, AutoTokenizer, AutoConfig, AutoModel, PreTrainedModel
 import polars as pl
-from torch import nn
-
-
-## define model path
+from datasets import Dataset
+import numpy as np
+from sklearn.metrics import precision_recall_fscore_support
 MODELS = {
         'Bio_ClinicalBERT' : 'emilyalsentzer/Bio_ClinicalBERT', ## used by BERTMAP, may be better for clinical use cases.
         'PubMedBERT': 'microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext', ## PubMedBERT, uses PubMed so may be good for research terms
@@ -11,35 +10,85 @@ MODELS = {
         }
 model_name = 'SapBERT'
 model_path = MODELS[model_name]
-## load model and tokenizer
-config = AutoConfig.from_pretrained(model_path)
-model = AutoModel.from_config(config)
+
+
+
+model = AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=3)
 tokenizer = AutoTokenizer.from_pretrained(model_path)
-
-## add in a linear model for classification 
-classifier = nn.Linear(in_features=768, out_features=3, bias = True)
-dropout = nn.Dropout(p = 0.5) ## add drop out layer
-## load in some example data 
-data_path = 'generated_maps.tsv'
-df = pl.read_csv(data_path, separator='\t')
+## load dataset
+data_path = 'generated_maps.parquet'
+df = pl.read_parquet(data_path)
+lines = []
 for row in df.iter_rows(named = True):
-    break
+    line = {}
+    line['txt'] = f"{row['source prefix']} | {row['source name']} | {', '.join(row['source descendant names'])} | {', '.join(row['source ancestor names'])} [SEP] {row['target prefix']} | {row['target name']} | {', '.join(row['target descendant names'])} | {', '.join(row['target ancestor names'])}"
+    line['class']= row['class']
+    lines.append(line)
+dataset = Dataset.from_list(lines)
+tokenizer = AutoTokenizer.from_pretrained(model_path)
+def tokenize(row):
+    rep = tokenizer(
+        row['txt'],
+        padding='max_length',
+        truncation=True,
+        max_length=256,  # adjust as needed
+        return_tensors='pt'
+    )
+    rep['label'] = row['class']
+    return rep
+dataset = dataset.map(tokenize, batched=True)
+split_dataset = dataset.train_test_split(test_size=0.3, seed=101, shuffle=True)
+train_dataset = split_dataset["train"]
+temp_dataset = split_dataset["test"]
+val_test_split = temp_dataset.train_test_split(test_size=0.3, seed=101, shuffle=True)
+val_dataset = val_test_split["train"]
+test_dataset = val_test_split["test"]
 
-## try to tokenize it 
-label = row.pop('class')
-txt_rep = f"{row['source prefix']} | {row['source name']} [SEP] {row['target prefix']} | {row['target name']}"
-tokenized_input = tokenizer(
-    txt_rep,
-    padding='max_length',
-    truncation=True,
-    max_length=256,  # adjust as needed
-    return_tensors='pt'
+
+## define loss 
+def compute_metrics(p):
+    preds = np.argmax(p.predictions, axis=1)
+    labels = p.label_ids
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        labels, preds, average="macro", zero_division=0
+    )
+    return {"precision": precision, "recall": recall, "f1": f1}
+
+
+### define trainer
+training_args = TrainingArguments(
+        eval_strategy="epoch",
+        save_strategy="epoch",
+        logging_strategy="epoch",
+        learning_rate=2e-5,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=16,
+        num_train_epochs=10,
+        weight_decay=0.01,
+        save_total_limit=1,
+        logging_dir="./logs",
+    )
+
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_dataset,
+    eval_dataset=val_dataset,
+    compute_metrics=compute_metrics,
 )
-## pass to bert model
-res = model(**tokenized_input)
-pooled_res = res.pooler_output ## take pooled output could also use the last hidden state
-## drop out layer
-dropout_res = dropout(pooled_res)
-feature_res = classifier(dropout_res)
-output = nn.functional.softmax(feature_res) ## could also use relu
+## train model 
+# trainer.train()
 
+# # ## save res 
+# model.save_pretrained("./output/refinenet", from_pt=True)
+
+## load the saved model and run on testset
+model_2 = AutoModelForSequenceClassification.from_pretrained("./output/refinenet", num_labels=3)
+evaluator = Trainer(
+    model=model_2,
+    args=training_args,
+    eval_dataset=test_dataset,
+    compute_metrics=compute_metrics,
+)
+evaluator.evaluate(eval_dataset=test_dataset) 

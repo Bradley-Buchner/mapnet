@@ -307,6 +307,10 @@ def make_broad_narrow_dataset(
     Note:
         - distance_cutoff sets the maximum distance (ie number of edges) to use when getting ancestors or 
     """
+    from polars import Schema, String, List, Int64
+    consistent_schema = Schema([('source identifier', String), ('source name', String), ('source prefix', String), ('target identifier', String), ('target name', String), ('target prefix', String), ('class', Int64), ('source descendant identifiers', List(String)), ('source descendant names', List(String)), ('target descendant identifiers', List(String)), ('target descendant names', List(String)), ('source ancestor identifiers', List(String)), ('source ancestor names', List(String)), ('target ancestor identifiers', List(String)), ('target ancestor names', List(String))])
+
+
     name_map_func = lambda x: get_name_from_curie(x, name_maps)
     rng = np.random.default_rng(seed=seed)
     classes = rng.integers(low=0, high=3, size=len(known_maps))
@@ -388,12 +392,16 @@ def make_broad_narrow_dataset(
             max_distance=max_distance
         )
         generated_maps.append(generated_map)
-    generated_maps_df = pl.from_records(generated_maps)
+    generated_maps_df = pl.from_records(generated_maps, schema=consistent_schema)
     ## TODO: make where these are written nicer
     # generated_maps_df.write_csv(
     #     "generated_maps.tsv", include_header=True, separator="\t"
     # )
-    generated_maps_df.write_parquet('generated_maps.parquet')
+    pq_path = 'generated_maps.parquet'
+    if os.path.exists(pq_path):
+        df = pl.read_parquet(pq_path, schema=consistent_schema)
+        generated_maps_df = generated_maps_df.vstack(df).unique()
+    generated_maps_df.write_parquet(pq_path)
     return generated_maps_df
 
 

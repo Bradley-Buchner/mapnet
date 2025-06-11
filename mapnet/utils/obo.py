@@ -130,7 +130,7 @@ def get_network_graph(resources: dict, meta: dict, prefix: str, **_):
             .get_networkx()
         )
     else:
-        obo = pyobo.get_ontology(prefix=prefix, version=version)
+        obo = pyobo.get_ontology(prefix=prefix, version=version, cache=False)
         full_graph = obo.get_graph().get_networkx()
     return full_graph
 
