@@ -92,3 +92,10 @@ evaluator = Trainer(
     compute_metrics=compute_metrics,
 )
 evaluator.evaluate(eval_dataset=test_dataset) 
+
+
+
+
+
+
+
