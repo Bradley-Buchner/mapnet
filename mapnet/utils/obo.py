@@ -152,7 +152,6 @@ def format_known_mappings(
     name_maps = get_name_maps(
         resources=resources, additional_namespaces=additional_namespaces
     )
-    name_map_func = lambda x: get_name_from_curie(x, name_maps=name_maps)
     df = pl.read_csv(resource_fname, separator="\t")
     if len(df) > 0:
         df = df.with_columns(

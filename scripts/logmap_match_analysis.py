@@ -65,7 +65,7 @@ additional_namespaces = {
     # "ncbitaxon": {"version": None},  ## thiis one is too large and causes a crash
     "uberon": {"version": None},
 }
-run_args = {"tag": "0.01", "build": False, "analysis_name": "disease_landscape"}
+run_args = {"tag": "0.01", "build": False, 'sigularity' : True, "analysis_name": "disease_landscape"}
 
 if __name__ == "__main__":
     predicted_mappings = merge_logmap_mappings(

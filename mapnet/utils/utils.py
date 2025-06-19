@@ -3,7 +3,7 @@ import bioregistry
 import subprocess
 import os
 from pyobo import get_id_name_mapping
-from bioregistry import parse_curie, normalize_prefix
+from bioregistry import parse_curie, normalize_prefix, normalize_curie
 from bioregistry.resolve import get_owl_download
 import polars as pl
 from typing import Callable
@@ -242,5 +242,50 @@ def sssom_to_biomappings(
             "target identifier",
             "target name",
             "target prefix",
+        ]
+    )
+def biomappings_to_sssom(
+    df, resources: dict = None, additional_namespaces: dict = None
+):
+    """
+    convert biommaings formated df to a df in sssom format
+    """
+    
+
+    df = (
+    df
+    .with_columns(
+        pl.struct('source prefix','source identifier')
+    .map_elements(lambda x: normalize_curie(f"{x['source prefix']}:{x['source identifier']}"), return_dtype = pl.String)
+    .alias('subject_id'), 
+    pl.struct('target prefix','target identifier')
+    .map_elements(lambda x: normalize_curie(f"{x['target prefix']}:{x['target identifier']}"), return_dtype = pl.String)
+    .alias('object_id')
+    )
+    )
+    if "source name" not in df.columns:
+        name_maps = get_name_maps(
+            resources=resources, additional_namespaces=additional_namespaces
+        )
+        name_map_func = lambda x: get_name_from_curie(x, name_maps=name_maps)
+        df = df.with_columns(
+            pl.col("subject_id")
+            .map_elements(name_map_func, return_dtype=pl.String)
+            .alias("source name"),
+            pl.col("object_id")
+            .map_elements(name_map_func, return_dtype=pl.String)
+            .alias("target name"),
+        )
+    return df.rename(
+        {
+            "source name": "subject_label",
+            "target name": "object_label",
+        }
+    ).select(
+        [
+            "subject_id",
+            "subject_label",
+            "object_id",
+            "object_label",
         ]
     )

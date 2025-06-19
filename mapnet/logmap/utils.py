@@ -316,7 +316,7 @@ def merge_logmap_mappings(
     for source_prefix, target_prefix, mapping_path in walk_logmap_output_dir(
         output_dir=output_dir, resources=resources
     ):
-        logger.info(source_prefix, target_prefix, mapping_path)
+        logger.info(f'{source_prefix}, {target_prefix}, {mapping_path}')
         logger.info("-" * 40)
         if mapping_df is None:
             mapping_df = format_logmap_mappings(

@@ -50,9 +50,9 @@ logmap_args = {
 if __name__ == "__main__":
     dataset_def = normalize_dataset_def(dataset_def=dataset_def)
     ## download obo file if not already present
-    # download_raw_obo_files(dataset_def=dataset_def)
+    download_raw_obo_files(dataset_def=dataset_def)
     # ## subset the mesh obo file
-    # get_onto_subset(prefix="mesh", method="full", dataset_def=dataset_def)
+    get_onto_subset(prefix="mesh", method="full", dataset_def=dataset_def)
     ## build image for logmap from docker file
     build_image(**logmap_args)
     ## run the matching
