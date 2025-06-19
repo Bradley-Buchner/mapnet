@@ -8,22 +8,35 @@ version = "2025.0.0"
 dependencies = [
     "jpype1",
     "polars",
-    "torch",
-    "torchvision",
-    "torchaudio",
-    "deeponto",
     "biomappings",
     "bioregistry",
-    "black",
     "indra",
     "pyobo",
-    "transformers[torch]==4.40.0"
 ]
+
 requires-python = ">=3.10,<3.11"
+
 
 description = "Algorithms for semantic mappings between different ontologies."
 readme = "README.md"
 license-files = ["LICENSE"]
+
+[project.optional-dependencies]
+dev = [
+	'ipdb',
+	'jedi',
+]
+bertmap = [
+    "torch",
+    "torchvision",
+    "torchaudio",
+    "deeponto",
+]
+refinenet = [
+    "transformers[torch]==4.40.0",
+]
+
+
 
 [project.urls]
 Homepage = "https://github.com/gyorilab/mapnet"
