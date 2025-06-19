@@ -12,17 +12,26 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def build_image(tag: str = "0.01", **_):
+def build_image(tag: str = "0.01", singularity:bool = False, **_):
     """build the logmap image with a specfied tag"""
-    cmd = [
-        "docker",
-        "build",
-        "-f",
-        "mapnet/logmap/container/Dockerfile",
-        "./",
-        "-t",
-        f"logmap:{shlex.quote(tag)}",
-    ]
+    if not singularity:
+        cmd = [
+            "docker",
+            "build",
+            "-f",
+            "mapnet/logmap/container/Dockerfile",
+            "./",
+            "-t",
+            f"logmap:{shlex.quote(tag)}",
+        ]
+    else:
+        cmd = [
+            "apptainer",
+            "pull",
+            '--force', ## overwrite if sif file is already present.
+            "mapnet/logmap/container/logmap.sif",
+            "docker://buzgalbraith/mapnet-logmap" , ## just pulls latest tag. from dockerhub 
+        ]
     logger.info(f"running, {cmd}")
     subprocess.check_call(cmd)
 
@@ -35,9 +44,11 @@ def run_logmap(
     tag: str = "0.01",
     target_def: dict = None,
     source_def: dict = None,
+    singularity: bool = False,
     **_,
 ):
     output_path = output_path or os.path.join(os.getcwd(), "mapnet", "logmap", "output")
+    os.makedirs(output_path, exist_ok=True)
     if target_onto_file == None:
         if target_def == None:
             raise ValueError("must define either target_onto_file or target_def")
@@ -81,19 +92,33 @@ def run_logmap(
         "true",  # classify input ontology as well as map
     ]
     ##  define the command to run
-    cmd = [
-        "docker",
-        "run",
-        "--rm",
-        "-v",
-        f"{shlex.quote(output_path)}:/package/output",  # Mount where output will be written
-        "-v",
-        f"{shlex.quote(dataset_dir)}:/package/resources/",  ## mount directory with resources
-        f"logmap:{shlex.quote(tag)}",  ## specify the image and tag
-        "sh",
-        "-c",
-        shlex.join(java_cmd),  ## add the java command as a string
-    ]
+    if singularity:
+        cmd = [
+            "apptainer",
+            "run",
+            "-B",
+            f"{shlex.quote(output_path)}:/package/output",  # Mount where output will be written
+            "-B",
+            f"{shlex.quote(dataset_dir)}:/package/resources/",  ## mount directory with resources  
+            "mapnet/logmap/container/logmap.sif",
+            "sh",
+            "-c",
+            shlex.join(java_cmd),  ## add the java command as a string
+        ]
+    else:
+        cmd = [
+            "docker",
+            "run",
+            "--rm",
+            "-v",
+            f"{shlex.quote(output_path)}:/package/output",  # Mount where output will be written
+            "-v",
+            f"{shlex.quote(dataset_dir)}:/package/resources/",  ## mount directory with resources
+            f"logmap:{shlex.quote(tag)}",  ## specify the image and tag
+            "sh",
+            "-c",
+            shlex.join(java_cmd),  ## add the java command as a string
+        ]
     logger.info(cmd)
     # run the command
     subprocess.check_call(cmd)
@@ -106,6 +131,7 @@ def logmap_arg_factory(
     tag: str,
     dataset_dir: str = None,
     output_dir: str = None,
+    singularity:bool = False,
     **_,
 ):
     """returns a generator of args for running logmap pairwise on a dataset"""
@@ -122,7 +148,7 @@ def logmap_arg_factory(
     else:
         output_dir = os.path.join(os.getcwd(), "output", "logmap", analysis_name)
         os.makedirs(output_dir, exist_ok=True)
-    logmap_args = {"tag": tag, "dataset_dir": dataset_dir}
+    logmap_args = {"tag": tag, "dataset_dir": dataset_dir, "singularity":singularity}
     for source, target in combinations(resources, r=2):
         logmap_args["output_path"] = os.path.join(output_dir, f"{source}-{target}")
         logmap_args["source_def"] = {
@@ -148,6 +174,7 @@ def run_logmap_pairwise(
     build: bool = False,
     dataset_dir: str = None,
     output_dir: str = None,
+    singularity: bool = False,
     **_,
 ):
     """runs logmap pairwise over a set of resources"""
@@ -157,7 +184,7 @@ def run_logmap_pairwise(
     resources = version_mappings
     if build:
         logger.info(f"building image with tag {tag}")
-        build_image(tag=tag)
+        build_image(tag=tag, singularity=singularity)
     for logmap_arg in logmap_arg_factory(
         analysis_name=analysis_name,
         resources=resources,
@@ -165,6 +192,7 @@ def run_logmap_pairwise(
         tag=tag,
         dataset_dir=dataset_dir,
         output_dir=output_dir,
+        singularity=singularity,
     ):
 
         os.makedirs(logmap_arg["output_path"], exist_ok=True)
@@ -180,6 +208,7 @@ def run_logmap_for_target_pairs(
     build: bool = False,
     dataset_dir: str = None,
     output_dir: str = None,
+    singularity:bool = False,
     **_,
 ):
     """Runs logmap for all pairs only containing a target resource"""
@@ -197,6 +226,7 @@ def run_logmap_for_target_pairs(
         tag=tag,
         dataset_dir=dataset_dir,
         output_dir=output_dir,
+        singularity=singularity
     ):
         if (
             logmap_arg["source_def"]["prefix"] == target_resource_prefix

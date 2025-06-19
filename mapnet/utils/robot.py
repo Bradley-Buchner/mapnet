@@ -2,7 +2,7 @@
 helper methods for using Robot when parsing and filtering ontologies
 """
 
-from bioontologies.robot import ROBOT_COMMAND
+from bioontologies.robot import get_robot_jar_path
 from subprocess import check_call
 from shlex import quote
 import os
@@ -27,7 +27,10 @@ def convert_onto_format(input_file: str, desired_format: str, output_path: str =
         os.path.dirname(input_file),
         os.path.splitext(os.path.basename(input_file))[0] + desired_format,
     )
-    cmd = ROBOT_COMMAND + [
+    cmd = [
+        "java",
+        "-jar",
+        str(get_robot_jar_path()),
         "convert",
         "--input",
         quote(input_file),
@@ -37,7 +40,7 @@ def convert_onto_format(input_file: str, desired_format: str, output_path: str =
         "false",
         "-vvv",
     ]
-    logger.info(cmd)
+    logger.info(f'running {cmd}')
     return check_call(cmd)
 
 
@@ -56,7 +59,10 @@ def get_directional_onto_subset(
         os.path.dirname(onto_path),
         subset + "_" + os.path.splitext(os.path.basename(onto_path))[0] + ".owl",
     )
-    cmd = ROBOT_COMMAND + [
+    cmd = [
+        "java",
+        "-jar",
+        str(get_robot_jar_path()),
         "extract",
         "--method",
         "MIREOT",
@@ -69,21 +75,26 @@ def get_directional_onto_subset(
         cmd += [subset_arg, get_iri(prefix, term, prefix_map=prefix_map)]
     if verbose:
         cmd += ["-vvv"]
-    logger.info("running", cmd)
+    logger.info(f'running {cmd}')
     check_call(cmd)
 
 
 def merge_ontos(output_path: str, input_ontos: list, delete_inputs: bool = False):
     """merges a set of ontologies into one combined file"""
-    cmd = ROBOT_COMMAND + ["merge"]
+    cmd = [
+    "java",
+    "-jar",
+    str(get_robot_jar_path()),
+    ]
+    cmd +=  ["merge"]
     for onto in input_ontos:
         cmd += ["--input", onto]
     cmd += ["--output", output_path]
-    logger.info("running", cmd)
+    logger.info(f'running {cmd}')
     if delete_inputs:
         clean_cmd = ["rm"] + [onto for onto in input_ontos]
-        logger.info(clean_cmd)
         check_call(cmd)
+        logger.info(f'running {clean_cmd}')
         return check_call(clean_cmd)
     return check_call(cmd)
 
