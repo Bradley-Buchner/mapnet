@@ -218,7 +218,7 @@ def run_logmap_for_target_pairs(
     resources = version_mappings
     if build:
         logger.info(f"building image with tag {tag}")
-        build_image(tag=tag)
+        build_image(tag=tag, singularity=singularity)
     for logmap_arg in logmap_arg_factory(
         analysis_name=analysis_name,
         resources=resources,

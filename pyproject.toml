@@ -36,6 +36,10 @@ refinenet = [
     "transformers[torch]==4.40.0",
 ]
 
+scripts = [
+    "gilda",
+    "textdistance",
+]
 
 
 [project.urls]

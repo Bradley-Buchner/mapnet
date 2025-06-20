@@ -14,14 +14,18 @@ def load_biomappings_df(
     target_prefix: str, source_prefix: str, undirected: bool = True
 ):
     """return a polars data frame with the mappings from biomapping for two given ontologies."""
+
+    
     df = (
-        (
             pl.from_records(
                 biomappings.load_mappings(), strict=False, infer_schema_length=None
             )
+        )
+    df = sssom_to_biomappings(df)
+    df = (
+        df
             .filter(pl.col("source prefix").eq(source_prefix.lower()))
             .filter(pl.col("target prefix").eq(target_prefix.lower()))
-        )
         .with_columns(
             (
                 pl.col("source prefix")

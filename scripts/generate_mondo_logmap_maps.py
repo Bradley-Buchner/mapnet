@@ -16,12 +16,12 @@ from mapnet.utils import (
     get_novel_mappings,
 )
 from mapnet.logmap import run_logmap_for_target_pairs, merge_logmap_mappings
-
+from biomappings.resources import PredictionTuple, append_prediction_tuples
 ## define our subsets
 dataset_def = {
     "resources": {
         "ICD10": {"version": "2019", "subset": False, "subset_identifiers": []},
-        "ICD11": {"version": "2025-01", "subset": False, "subset_identifiers": []},
+        # "ICD11": {"version": "2025-01", "subset": False, "subset_identifiers": []},
         "MONDO": {"version": "2025-03-04", "subset": False, "subset_identifiers": []},
     },
     "meta": {
@@ -41,6 +41,7 @@ additional_namespaces = {
 run_args = {
     "tag": "0.01",
     "build": True,
+    'singularity' : True,
     "analysis_name": "mondo_matching",
     "target_resource_prefix": "mondo",
 }
@@ -151,26 +152,21 @@ def format_results(res):
     """
     res = res.filter(pl.col("edit_similarity").eq(1))
     ## write the result
-    res = res.select(
-        [
-            "source prefix",
-            "source identifier",
-            "source name",
-            "relation",
-            "target prefix",
-            "target identifier",
-            "target name",
-            "type",
-            "confidence",
-            "source",
-        ]
-    )
-    res = res.with_columns(
-        pl.col("type").alias("prediction_type"),
-        pl.col("source").alias("prediction_source"),
-    )
-    res.write_csv("mondo_report.tsv", separator="\t")
-
+    preds = []
+    for row in res.iter_rows(named=True):
+        preds.append(
+            PredictionTuple(
+            object_id=row['source identifier'],
+            object_label=row['source name'],
+            predicate_id="skos:exactMatch",
+            subject_id=row["target identifier"],
+            subject_label=row["target name"],
+            mapping_justification="semapv:LexicalMatching",
+            confidence=row['confidence'],
+            mapping_tool="https://github.com/gyorilab/mapnet/blob/main/scripts/generate_mondo_logmap_maps.py",
+            )
+            )
+    append_prediction_tuples(preds)
 
 if __name__ == "__main__":
     ## download the obo files for each resource
