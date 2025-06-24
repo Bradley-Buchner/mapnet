@@ -302,6 +302,7 @@ def make_broad_narrow_dataset(
     name_maps: dict,
     max_distance: int = 1,
     seed: int = 101,
+    output_path:str = None, 
 ):
     """makes a dataset of broad or narrow matches from a given dataset.
     Note:
@@ -393,11 +394,7 @@ def make_broad_narrow_dataset(
         )
         generated_maps.append(generated_map)
     generated_maps_df = pl.from_records(generated_maps, schema=consistent_schema)
-    ## TODO: make where these are written nicer
-    # generated_maps_df.write_csv(
-    #     "generated_maps.tsv", include_header=True, separator="\t"
-    # )
-    pq_path = 'generated_maps.parquet'
+    pq_path = 'generated_maps.parquet' if output_path is None else output_path
     if os.path.exists(pq_path):
         df = pl.read_parquet(pq_path, schema=consistent_schema)
         generated_maps_df = generated_maps_df.vstack(df).unique()

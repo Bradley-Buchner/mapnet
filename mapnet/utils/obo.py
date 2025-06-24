@@ -131,7 +131,10 @@ def get_network_graph(resources: dict, meta: dict, prefix: str, **_):
         )
     else:
         obo = pyobo.get_ontology(prefix=prefix, version=version, cache=False)
-        full_graph = obo.get_graph().get_networkx()
+        try: 
+            full_graph = obo.get_graph().get_networkx()
+        except:
+            import ipdb; ipdb.set_trace()
     return full_graph
 
 

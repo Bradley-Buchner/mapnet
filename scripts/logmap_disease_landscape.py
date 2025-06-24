@@ -89,4 +89,4 @@ if __name__ == "__main__":
     ## subset the resources
     get_onto_subsets(dataset_def=dataset_def, verbose=True)
     # ## run logmap on each pairwise resource
-    # run_logmap_pairwise(**dataset_def, **run_args)
+    run_logmap_pairwise(**dataset_def, **run_args)
