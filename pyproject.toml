@@ -11,7 +11,7 @@ dependencies = [
     "biomappings",
     "bioregistry",
     "indra",
-    "pyobo",
+    "pyobo==0.12.2",
 ]
 
 requires-python = ">=3.10,<3.11"
