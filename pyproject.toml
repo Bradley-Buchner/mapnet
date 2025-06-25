@@ -34,6 +34,8 @@ bertmap = [
 ]
 refinenet = [
     "transformers[torch]==4.40.0",
+    "datasets",
+    "scikit-learn", 
 ]
 
 scripts = [
