@@ -3,13 +3,13 @@ import bioregistry
 import subprocess
 import os
 from pyobo import get_id_name_mapping
-from bioregistry import parse_curie, normalize_prefix, normalize_curie
+from bioregistry import normalize_prefix, normalize_curie
 from bioregistry.resolve import get_owl_download
 import polars as pl
-from typing import Callable
-import networkx as nx
-import numpy as np
 import logging
+import json
+from textdistance import levenshtein
+import networkx as nx
 logger = logging.getLogger(__name__)
 
 
@@ -294,113 +294,10 @@ def biomappings_to_sssom(
     )
 
 
-
-def make_broad_narrow_dataset(
-    known_maps: pl.DataFrame,
-    source_graph,
-    target_graph,
-    name_maps: dict,
-    max_distance: int = 1,
-    seed: int = 101,
-    output_path:str = None, 
-):
-    """makes a dataset of broad or narrow matches from a given dataset.
-    Note:
-        - distance_cutoff sets the maximum distance (ie number of edges) to use when getting ancestors or 
-    """
-    from polars import Schema, String, List, Int64
-    consistent_schema = Schema([('source identifier', String), ('source name', String), ('source prefix', String), ('target identifier', String), ('target name', String), ('target prefix', String), ('class', Int64), ('source descendant identifiers', List(String)), ('source descendant names', List(String)), ('target descendant identifiers', List(String)), ('target descendant names', List(String)), ('source ancestor identifiers', List(String)), ('source ancestor names', List(String)), ('target ancestor identifiers', List(String)), ('target ancestor names', List(String))])
-
-
-    name_map_func = lambda x: get_name_from_curie(x, name_maps)
-    rng = np.random.default_rng(seed=seed)
-    classes = rng.integers(low=0, high=3, size=len(known_maps))
-    generated_maps = []
-    for i, row in enumerate(known_maps.iter_rows(named=True)):
-        generated_map = row.copy()
-        generated_map["class"] = classes[i]
-        original_target_identifier = row["target identifier"]
-        ## skip cases where there is a mapping to a class that is not in the target dataset
-        if original_target_identifier not in target_graph.nodes:
-            continue
-        ## zero represent exact matches
-        if generated_map["class"] == 0:
-            target_identifier = original_target_identifier
-        else:
-            ## one for broad match (ie the source term should match to a parent term)
-            if generated_map["class"] == 1:
-                # candidates = target_graph.successors(generated_map['target identifier'])
-                candidates = descendants_within_distance(
-                    target_graph,
-                    generated_map["target identifier"],
-                    max_distance=max_distance,
-                )
-            ## two for narrow match (ie the source term should be matched to a child term)
-            else:
-                # candidates = target_graph.predecessors(generated_map['target identifier'])
-                candidates = ancestors_within_distance(
-                    target_graph,
-                    generated_map["target identifier"],
-                    max_distance=max_distance,
-                )
-            ## filter candidates not in graph
-            candidates = list(filter(lambda x: x in target_graph.nodes, candidates))
-            ## pick one at random
-            if len(candidates) > 0:
-                target_identifier = candidates[
-                    rng.integers(low=0, high=len(candidates))
-                ]
-            ## if there are not valid candidates just use an exact match
-            if len(candidates) == 0:
-                target_identifier = original_target_identifier
-                generated_map["class"] = 0
-        ## update row if mapping has changed
-        if target_identifier != original_target_identifier:
-            generated_map["target identifier"] = target_identifier
-            generated_map["target name"] = name_map_func(target_identifier)
-        ## add  and ancestors for source to row
-        generated_map['source descendant identifiers'], generated_map['source descendant names'] = top_k_named_relations(
-            source_graph,
-            generated_map["source identifier"],
-            name_map_func, 
-            k = 3,
-            descendants=False,
-            max_distance=max_distance
-        )
-        generated_map['target descendant identifiers'], generated_map['target descendant names'] = top_k_named_relations(
-            target_graph,
-            generated_map["target identifier"],
-            name_map_func, 
-            k = 3,
-            descendants=False,
-            max_distance=max_distance
-
-        )
-        generated_map['source ancestor identifiers'], generated_map['source ancestor names'] = top_k_named_relations(
-            source_graph,
-            generated_map["source identifier"],
-            name_map_func, 
-            k = 3,
-            descendants=True,
-            max_distance=max_distance
-        )
-        generated_map['target ancestor identifiers'], generated_map['target ancestor names'] = top_k_named_relations(
-            target_graph,
-            generated_map["target identifier"],
-            name_map_func, 
-            k = 3,
-            descendants=True,
-            max_distance=max_distance
-        )
-        generated_maps.append(generated_map)
-    generated_maps_df = pl.from_records(generated_maps, schema=consistent_schema)
-    pq_path = 'generated_maps.parquet' if output_path is None else output_path
-    if os.path.exists(pq_path):
-        df = pl.read_parquet(pq_path, schema=consistent_schema)
-        generated_maps_df = generated_maps_df.vstack(df).unique()
-    generated_maps_df.write_parquet(pq_path)
-    return generated_maps_df
-
+def load_config_from_json(config_path:str):
+    with open(config_path, "r") as f:
+        config = json.load(f)
+    return config
 
 def top_k_named_relations(G, source,name_map_func, k:int = 3,max_distance:int =3, descendants = False):
     """Returns a list of the top k ancestors or descendants for a given graph and source"""
@@ -438,3 +335,11 @@ def ancestors_within_distance(G, source, max_distance: int = None):
         child
         for _, child in nx.bfs_edges(G, source, reverse=True, depth_limit=max_distance)
     }
+
+def normalized_edit_similarity(x):
+    """
+    calculate the normalized edit similarity for all target and source class names
+    """
+    return levenshtein.normalized_similarity(
+        x["source name"].upper(), x["target name"].upper()
+    )

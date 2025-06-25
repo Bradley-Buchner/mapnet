@@ -56,7 +56,7 @@ def collate_fn(batch):
     return collated
 
 
-def get_inferene_dataset(dataset):
+def get_inference_dataset(dataset):
     return DataLoader(dataset, batch_size=16, collate_fn=collate_fn)
 
 
@@ -67,7 +67,7 @@ def main(model_path: str, model_name: str, dataset_path: str, output_dir: str):
     model = load_trained_model(model_path=model_path)
     model.eval()
     dataset = get_refinenet_dataset(df=df, tokenizer=tokenizer)
-    loader = get_inferene_dataset(dataset)
+    loader = get_inference_dataset(dataset)
     rows = []
     for batch in tqdm(loader, desc="Running inference"):
         output = model(

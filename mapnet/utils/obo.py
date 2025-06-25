@@ -12,6 +12,7 @@ import polars as pl
 from mapnet.utils import get_name_maps, get_name_from_curie
 from mapnet.utils.utils import sssom_to_biomappings
 import logging 
+import pickle
 
 logger = logging.getLogger(__name__)
 
@@ -116,25 +117,36 @@ def subset_graph_to_obo(subset_graph: nx.DiGraph, prefix: str, version: str):
     return subset_obo
 
 
+# def get_network_graph(known_maps):
+#     prefixes= set(known_maps['subject_prefix'].unique().to_list() + known_maps['object_prefix'].unique().to_list())
+
+
 def get_network_graph(resources: dict, meta: dict, prefix: str, **_):
     """load the network graph fora  given prefix."""
     version = resources[prefix]["version"]
+    resource_dir = os.path.join(meta["dataset_dir"], prefix, version)
     if resources[prefix]["subset"]:
-        subset_version = f"{prefix}_{version}_subset"
-        subset_path = os.path.join(
-            meta["dataset_dir"], prefix, version, meta["subset_dir"], f"{prefix}.obo"
-        )
+        resource_dir = os.path.join(resource_dir, meta["subset_dir"])
+    obo_path = os.path.join(
+        resource_dir, f"{prefix}.obo"
+    )
+    pickle_path = os.path.join(
+        resource_dir, f"{prefix}.pkl"
+    )
+    if os.path.exists(pickle_path):
+        logger.info(f"Found {prefix} graph, at {pickle_path}")
+        with open(pickle_path, 'rb') as f:
+            full_graph = pickle.load(f) 
+    else:
+        logger.info(f"Did not find {prefix} graph, reading from obo")
         full_graph = (
-            pyobo.from_obo_path(subset_path, prefix=prefix, version=subset_version)
+            pyobo.from_obo_path(obo_path, prefix=prefix, version='a')
             .get_graph()
             .get_networkx()
         )
-    else:
-        obo = pyobo.get_ontology(prefix=prefix, version=version, cache=False)
-        try: 
-            full_graph = obo.get_graph().get_networkx()
-        except:
-            import ipdb; ipdb.set_trace()
+        with open(pickle_path, 'wb') as f:
+            pickle.dump(full_graph, f) 
+        logger.info(f"Writing {prefix} graph, to {pickle_path}")
     return full_graph
 
 
@@ -237,7 +249,7 @@ def load_known_mappings_df(
             full_mappings_df = full_mappings_df.vstack(mappings_df)
     return full_mappings_df
 
-
+# disease_landscape 
 def normalize_dataset_def(dataset_def):
     """normalize a dataset defention"""
     version_mappings = {

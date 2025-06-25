@@ -12,6 +12,7 @@ dependencies = [
     "bioregistry",
     "indra",
     "pyobo==0.12.2",
+    "textdistance",
 ]
 
 requires-python = ">=3.10,<3.11"
@@ -40,7 +41,6 @@ refinenet = [
 
 scripts = [
     "gilda",
-    "textdistance",
 ]
 
 
