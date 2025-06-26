@@ -1,17 +1,19 @@
 import datetime
-import bioregistry
-import subprocess
-import os
-from pyobo import get_id_name_mapping
-from bioregistry import normalize_prefix, normalize_curie
-from bioregistry.resolve import get_owl_download
-import polars as pl
-import logging
 import json
-from textdistance import levenshtein
-import networkx as nx
-logger = logging.getLogger(__name__)
+import logging
+import os
+import subprocess
+import sys
 
+import bioregistry
+import networkx as nx
+import polars as pl
+from bioregistry import normalize_curie, normalize_prefix
+from bioregistry.resolve import get_owl_download
+from pyobo import get_id_name_mapping
+from textdistance import levenshtein
+
+logger = logging.getLogger(__name__)
 
 
 def get_current_date_ymd():
@@ -247,24 +249,28 @@ def sssom_to_biomappings(
             "target prefix",
         ]
     )
+
+
 def biomappings_to_sssom(
     df, resources: dict = None, additional_namespaces: dict = None
 ):
     """
     convert biommaings formated df to a df in sssom format
     """
-    
 
-    df = (
-    df
-    .with_columns(
-        pl.struct('source prefix','source identifier')
-    .map_elements(lambda x: normalize_curie(f"{x['source prefix']}:{x['source identifier']}"), return_dtype = pl.String)
-    .alias('subject_id'), 
-    pl.struct('target prefix','target identifier')
-    .map_elements(lambda x: normalize_curie(f"{x['target prefix']}:{x['target identifier']}"), return_dtype = pl.String)
-    .alias('object_id')
-    )
+    df = df.with_columns(
+        pl.struct("source prefix", "source identifier")
+        .map_elements(
+            lambda x: normalize_curie(f"{x['source prefix']}:{x['source identifier']}"),
+            return_dtype=pl.String,
+        )
+        .alias("subject_id"),
+        pl.struct("target prefix", "target identifier")
+        .map_elements(
+            lambda x: normalize_curie(f"{x['target prefix']}:{x['target identifier']}"),
+            return_dtype=pl.String,
+        )
+        .alias("object_id"),
     )
     if "source name" not in df.columns:
         name_maps = get_name_maps(
@@ -294,32 +300,37 @@ def biomappings_to_sssom(
     )
 
 
-def load_config_from_json(config_path:str):
+def load_config_from_json(config_path: str):
     with open(config_path, "r") as f:
         config = json.load(f)
     return config
 
-def top_k_named_relations(G, source,name_map_func, k:int = 3,max_distance:int =3, descendants = False):
+
+def top_k_named_relations(
+    G, source, name_map_func, k: int = 3, max_distance: int = 3, descendants=False
+):
     """Returns a list of the top k ancestors or descendants for a given graph and source"""
     if source not in G.nodes:
         return [], []
     candidates = [
         child
-        for _, child in nx.bfs_edges(G, source, reverse=not descendants, depth_limit=max_distance)
+        for _, child in nx.bfs_edges(
+            G, source, reverse=not descendants, depth_limit=max_distance
+        )
     ]
     curies = []
     names = []
     added = 0
     for candidate_curie in candidates:
         candidate_name = name_map_func(candidate_curie)
-        if candidate_name != 'NO_NAME_FOUND':
+        if candidate_name != "NO_NAME_FOUND":
             added += 1
             curies.append(candidate_curie)
             names.append(candidate_name)
         if added == k:
             break
     return curies, names
-        
+
 
 def descendants_within_distance(G, source, max_distance: int = None):
     """get all  of a node in a directed graph up a max distance"""
@@ -336,6 +347,7 @@ def ancestors_within_distance(G, source, max_distance: int = None):
         for _, child in nx.bfs_edges(G, source, reverse=True, depth_limit=max_distance)
     }
 
+
 def normalized_edit_similarity(x):
     """
     calculate the normalized edit similarity for all target and source class names
@@ -343,3 +355,46 @@ def normalized_edit_similarity(x):
     return levenshtein.normalized_similarity(
         x["source name"].upper(), x["target name"].upper()
     )
+
+
+def file_safety_check(pth: str, auto=True, dir_mode: bool = None):
+    """
+    confirms that a desired output file can be written.
+    If a file is already there, check with user if they want to remove it.
+    if yes delete the file and continue
+    otherwise exit
+    args:
+        pth : path to output directory or file
+        dir_mode : if looking at a directory
+        auto : if to detect if file or directory automatically
+    """
+    if dir_mode is None:
+        auto = True
+    if auto:
+        dir_mode = os.path.isdir(pth) or (not os.path.splitext(pth)[1])
+    ## if file does not exist, make the directory
+    if not os.path.exists(pth):
+        if dir_mode:
+            os.makedirs(pth, exist_ok=True)
+        else:
+            os.makedirs(os.path.dirname(pth), exist_ok=True)
+        return
+    ## otherwise ask confirm it should be removed
+    else:
+        resp = input(
+            f"Output file {pth} already exists, would you like to overwrite it? (y/n): "
+        )
+        resp = resp.lower()
+        if resp == "y":
+            if dir_mode:
+                subprocess.run(["rm", "-r", pth])
+            else:
+                os.remove(pth)
+        elif resp == "n":
+            logger.info(
+                f"keeping {pth}, exiting program. Please either change output path or move existing file"
+            )
+            sys.exit(1)
+        else:
+            logger.error(f"Unrecognized response {resp}. Please respond either Y or N")
+            sys.exit(1)

@@ -8,6 +8,6 @@ bash -c \
 		--dataset-path generated_maps.parquet \
 		--output-dir output/refinenet \
 		--epochs 10 \
-		--batch-size 16
+		--batch-size 16 \
 	"
 

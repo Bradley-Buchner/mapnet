@@ -11,7 +11,9 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForSequenceClassification
 
-from mapnet.refinenet import get_refinenet_dataset, load_model, parse_txt_line
+from mapnet.refinenet import (get_refinenet_dataset, load_model,
+                              parse_formatted_mapping_input)
+from mapnet.utils import file_safety_check
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +51,7 @@ def collate_fn(batch):
     collated = {}
     for key in batch_keys:
         values = [item[key] for item in batch]
-        if key == "txt":
+        if key in ["txt", "orig"]:
             collated[key] = values
         else:
             collated[key] = torch.tensor(values)
@@ -60,15 +62,18 @@ def get_inference_dataset(dataset):
     return DataLoader(dataset, batch_size=16, collate_fn=collate_fn)
 
 
-def main(model_path: str, model_name: str, dataset_path: str, output_dir: str):
+def main(
+    model_path: str, model_name: str, dataset_path: str, output_dir: str, relation: bool
+):
     logger.info("Running inference...")
     _, tokenizer = load_model(model_name)
     df = pl.read_parquet(dataset_path)
     model = load_trained_model(model_path=model_path)
     model.eval()
-    dataset = get_refinenet_dataset(df=df, tokenizer=tokenizer)
+    dataset = get_refinenet_dataset(df=df, tokenizer=tokenizer, relation=relation)
     loader = get_inference_dataset(dataset)
     rows = []
+    j = 0
     for batch in tqdm(loader, desc="Running inference"):
         output = model(
             input_ids=batch["input_ids"],
@@ -76,17 +81,31 @@ def main(model_path: str, model_name: str, dataset_path: str, output_dir: str):
             attention_mask=batch["attention_mask"],
         )
         preds = torch.argmax(output.logits, dim=1)
-        txt_cols = list(map(parse_txt_line, batch["txt"]))
+        row = batch["orig"]
         for i, pred in enumerate(preds):
-            txt_cols[i]["pred"] = LABEL_MAP[pred.item()]
-        rows += txt_cols
+            row[i]["pred"] = LABEL_MAP[pred.item()]
+        rows += row
+        if j > 15:
+            break
+        j += 1
     res_df = pl.DataFrame(rows)
     write_path = os.path.join(output_dir, "predictions")
-    os.makedirs(write_path, exist_ok=True)
-    res_df.write_parquet(os.path.join(write_path, "full_preds.parquet"))
+    pq_path = os.path.join(write_path, "full_preds.parquet")
+    tsv_path = os.path.join(write_path, "non_nested_preds.tsv")
+    file_safety_check(pq_path)
+    file_safety_check(tsv_path)
+    res_df.write_parquet(pq_path)
     res_df.select(
-        ["source prefix", "source name", "target prefix", "target name", "pred"]
-    ).write_csv(os.path.join(write_path, "non_nested_preds.csv"))
+        [
+            "source prefix",
+            "source identifier",
+            "source name",
+            "target prefix",
+            "target identifier",
+            "target name",
+            "pred",
+        ]
+    ).write_csv(tsv_path, separator="\t")
 
 
 if __name__ == "__main__":
@@ -118,6 +137,12 @@ if __name__ == "__main__":
         type=str,
         default="output/refinenet/",
         help="path to directory to save predictions",
+    )
+    parser.add_argument(
+        "-r",
+        "--relation",
+        action="store_true",
+        help="if to use relations in input",
     )
     args = parser.parse_args()
     main(**vars(args))

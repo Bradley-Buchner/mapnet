@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+from collections import Counter
 from os import makedirs
 from os.path import join
 
@@ -12,7 +13,9 @@ from sklearn.metrics import precision_recall_fscore_support
 from transformers import Trainer, TrainingArguments
 
 from mapnet.refinenet import get_refinenet_dataset, load_model
-from mapnet.utils import get_current_date_ymd
+from mapnet.refinenet.weighted_trainer import (WeightedTrainer,
+                                               compute_class_weights)
+from mapnet.utils import file_safety_check, get_current_date_ymd
 
 logger = logging.getLogger(__name__)
 
@@ -41,19 +44,29 @@ def compute_metrics(p):
 
 
 def main(
-    model_name: str, dataset_path: str, output_dir: str, epochs: int, batch_size: int
+    model_name: str,
+    dataset_path: str,
+    output_dir: str,
+    epochs: int,
+    batch_size: int,
+    relation: bool,
 ):
     logger.info("Training model...")
     output_dir = join(output_dir, get_current_date_ymd())
-    makedirs(output_dir, exist_ok=True)
+    file_safety_check(output_dir)
     ## initiate model and tokenizer
     model, tokenizer = load_model(model_name=model_name)
     ## load raw dataset
     df = pl.read_parquet(dataset_path)
     ## format and put in dataset
-    dataset = get_refinenet_dataset(df=df, tokenizer=tokenizer)
+    dataset = get_refinenet_dataset(df=df, tokenizer=tokenizer, relation=relation)
     train_dataset, val_dataset, test_dataset = split_dataset(dataset=dataset)
     ## train model
+    class_weights = compute_class_weights(train_dataset)
+    print(class_weights)
+    import IPython
+
+    IPython.embed()
     training_args = TrainingArguments(
         output_dir=output_dir,
         evaluation_strategy="epoch",
@@ -67,12 +80,15 @@ def main(
         save_total_limit=1,
         logging_dir="./logs",
     )
-    trainer = Trainer(
+    trainer = WeightedTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
+        tokenizer=tokenizer,
+        # data_collator=DataCollator(tokenizer),
         compute_metrics=compute_metrics,
+        class_weights=class_weights,
     )
     ## TODO: add class weights
     trainer.train()
@@ -120,6 +136,12 @@ if __name__ == "__main__":
         type=int,
         default=16,
         help="Size of batch to use when training/evaluating model.",
+    )
+    parser.add_argument(
+        "-r",
+        "--relation",
+        action="store_true",
+        help="if to use relations in input",
     )
     args = parser.parse_args()
     main(**vars(args))
