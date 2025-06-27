@@ -54,9 +54,11 @@ def format_mapping_input(row, k=3, relation: bool = True):
     line = [
         f"SOURCE_NAME: {row['source name']}",
         f"TARGET_NAME: {row['target name']}",
-        # "[SEP]",
-        # f"SOURCE_ONTOLOGY: {row['source prefix']}",
-        # f"TARGET_ONTOLOGY: {row['target prefix']}",
+        "[SEP]",
+        f"NAME_DISTANCE_BIN: {row['edit_similarity']}",
+        "[SEP]",
+        f"SOURCE_ONTOLOGY: {row['source prefix']}",
+        f"TARGET_ONTOLOGY: {row['target prefix']}",
     ]
     if relation:
         line += [
@@ -98,6 +100,8 @@ def parse_formatted_mapping_input(text, relation: bool = True):
             result["target name"] = line.split(":", 1)[1].strip()
         elif line.startswith("TARGET_ONTOLOGY:"):
             result["target prefix"] = line.split(":", 1)[1].strip()
+        elif line.startswith("NAME_DISTANCE_BIN"):
+            result["edit_similarity"] = line.split(":", 1)[1].strip()
         elif current_list_key and line.startswith("  "):  # list item
             result[current_list_key].append(line.strip())
         elif relation:

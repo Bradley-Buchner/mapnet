@@ -63,10 +63,6 @@ def main(
     train_dataset, val_dataset, test_dataset = split_dataset(dataset=dataset)
     ## train model
     class_weights = compute_class_weights(train_dataset)
-    print(class_weights)
-    import IPython
-
-    IPython.embed()
     training_args = TrainingArguments(
         output_dir=output_dir,
         evaluation_strategy="epoch",
@@ -86,11 +82,9 @@ def main(
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
         tokenizer=tokenizer,
-        # data_collator=DataCollator(tokenizer),
         compute_metrics=compute_metrics,
         class_weights=class_weights,
     )
-    ## TODO: add class weights
     trainer.train()
     logger.info(f"Model training complete!")
     logger.info(f"Model has been written to {output_dir}")

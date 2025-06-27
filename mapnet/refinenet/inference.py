@@ -85,7 +85,7 @@ def main(
         for i, pred in enumerate(preds):
             row[i]["pred"] = LABEL_MAP[pred.item()]
         rows += row
-        if j > 15:
+        if j > 20:
             break
         j += 1
     res_df = pl.DataFrame(rows)

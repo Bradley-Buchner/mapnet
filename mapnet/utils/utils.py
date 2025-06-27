@@ -377,7 +377,9 @@ def file_safety_check(pth: str, auto=True, dir_mode: bool = None):
         if dir_mode:
             os.makedirs(pth, exist_ok=True)
         else:
-            os.makedirs(os.path.dirname(pth), exist_ok=True)
+            dir_name = os.path.dirname(pth)
+            dir_name = dir_name if dir_name != "" else "./"
+            os.makedirs(dir_name, exist_ok=True)
         return
     ## otherwise ask confirm it should be removed
     else:
