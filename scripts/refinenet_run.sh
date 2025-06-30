@@ -1,4 +1,4 @@
-#!/bin/bashs
+#!/bin/bash
 : '
 Script for setting up training and running inference with RefineNet Model
 Steps:
@@ -59,7 +59,7 @@ run_step 3 bash -c \
         --model-name SapBERT \
         --dataset-path generated_maps.parquet \
         --output-dir output/refinenet \
-        --epochs 2 \
+        --epochs 10 \
         --batch-size 16"
 
 # Step 4

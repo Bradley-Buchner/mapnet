@@ -78,9 +78,11 @@ def main(
         for i, pred in enumerate(preds):
             row[i]["pred"] = LABEL_MAP[pred.item()]
         rows += row
+        ## TODO: Remove this section after testing
         if j > 20:
             break
         j += 1
+        ## TODO: stop removing
     res_df = pl.DataFrame(rows)
     write_path = os.path.join(output_dir, "predictions")
     ## write full result to parquet

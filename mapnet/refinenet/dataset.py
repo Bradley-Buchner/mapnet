@@ -5,15 +5,25 @@ import os
 
 import polars as pl
 
-from mapnet.refinenet.constants import (GENERATED_DATASET_SCHEMA,
-                                        INFERENCE_DATASET_SCHEMA)
-from mapnet.utils import (ancestors_within_distance,
-                          descendants_within_distance, file_safety_check,
-                          get_name_from_curie, get_name_maps,
-                          get_network_graph, load_config_from_json,
-                          load_known_mappings_df, load_semera_landscape_df,
-                          normalize_dataset_def, normalized_edit_similarity,
-                          sssom_to_biomappings, top_k_named_relations)
+from mapnet.refinenet.constants import (
+    GENERATED_DATASET_SCHEMA,
+    INFERENCE_DATASET_SCHEMA,
+)
+from mapnet.utils import (
+    ancestors_within_distance,
+    descendants_within_distance,
+    file_safety_check,
+    get_name_from_curie,
+    get_name_maps,
+    get_network_graph,
+    load_config_from_json,
+    load_known_mappings_df,
+    load_semera_landscape_df,
+    normalize_dataset_def,
+    normalized_edit_similarity,
+    sssom_to_biomappings,
+    top_k_named_relations,
+)
 
 
 def add_ancestors_and_descendants(
@@ -104,12 +114,13 @@ def process_known_maps(dataset_def):
     provided_df = load_known_mappings_df(
         **dataset_def, additional_namespaces=None, sssom=True
     )
-    df = semra_df.select(cols).vstack(provided_df.select(cols))
+    df = semra_df.select(cols).vstack(provided_df.select(cols)).unique()
+
     ## get and process exact matches
-    exact_maps = df.filter(pl.col("predicate_id").eq(tags[0])).unique()
+    exact_maps = df.filter(pl.col("predicate_id").eq(tags[0]))
     ## get and process broad and narrow maps
-    broad_maps = df.filter(pl.col("predicate_id").eq(tags[1])).unique()
-    narrow_maps = df.filter(pl.col("predicate_id").eq(tags[2])).unique()
+    broad_maps = df.filter(pl.col("predicate_id").eq(tags[1]))
+    narrow_maps = df.filter(pl.col("predicate_id").eq(tags[2]))
     return (
         sssom_to_biomappings(
             df=exact_maps, resources=dataset_def["resources"]
@@ -163,7 +174,6 @@ def synthetic_step(
                 generated_map["class"] = 2
                 class_counts["narrow"] += 1
                 mapped = True
-
         ## otherwise try to make a broad match
         elif (target_class == "broad") and (not mapped):
             candidates = descendants_within_distance(
@@ -263,9 +273,14 @@ def make_synthetic_dataset(dataset_def: dict, max_distance: int, output_path: st
         max_distance=max_distance,
     )
     ## read the maps into a polars datafarme
-    generated_maps_df = pl.from_records(
-        generated_maps, schema=GENERATED_DATASET_SCHEMA
-    ).unique()
+    generated_maps_df = (
+        pl.from_records(generated_maps, schema=GENERATED_DATASET_SCHEMA)
+        .unique()
+        .with_columns(
+            pl.col("source name").str.to_lowercase(),
+            pl.col("target name").str.to_lowercase(),
+        )
+    )
     ## define the output path and confirm with the user it is ok to overwrite an existing one
     output_path = "generated_maps.parquet" if output_path == "" else output_path
     file_safety_check(output_path)
@@ -318,7 +333,14 @@ def make_inference_dataset(
             edit_cutoff=edit_cutoff,  ## not using distance cutoff
         )
         generated_maps.append(generated_map)
-    generated_maps_df = pl.from_records(generated_maps, schema=INFERENCE_DATASET_SCHEMA)
+    generated_maps_df = (
+        pl.from_records(generated_maps, schema=INFERENCE_DATASET_SCHEMA)
+        .unique()
+        .with_columns(
+            pl.col("source name").str.to_lowercase(),
+            pl.col("target name").str.to_lowercase(),
+        )
+    )
     output_path = "logmap_maps.parquet" if output_path is None else output_path
     file_safety_check(output_path)
     ## write output (to parquet file since contains nested data-types)

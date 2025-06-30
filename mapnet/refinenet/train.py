@@ -11,8 +11,7 @@ from sklearn.metrics import precision_recall_fscore_support
 from transformers import TrainingArguments
 
 from mapnet.refinenet import get_refinenet_dataset, load_model
-from mapnet.refinenet.weighted_trainer import (WeightedTrainer,
-                                               compute_class_weights)
+from mapnet.refinenet.weighted_trainer import WeightedTrainer, compute_class_weights
 from mapnet.utils import file_safety_check, get_current_date_ymd
 
 logger = logging.getLogger(__name__)
@@ -51,6 +50,8 @@ def main(
 ):
     ## ensure it is ok to overwrite saved model before proceeding
     logger.info("Setting up model/dataset for training...")
+    output_dir = join(output_dir, get_current_date_ymd())
+    file_safety_check(output_dir)
     ## initiate model and tokenizer
     model, tokenizer = load_model(model_name=model_name)
     ## load raw dataset
@@ -82,8 +83,6 @@ def main(
         compute_metrics=compute_metrics,
         class_weights=class_weights,
     )
-    output_dir = join(output_dir, get_current_date_ymd())
-    file_safety_check(output_dir)
     logger.info("Training model...")
     ## train model
     trainer.train()
