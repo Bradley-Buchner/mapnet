@@ -2,15 +2,13 @@
 
 import argparse
 import logging
-from collections import Counter
-from os import makedirs
 from os.path import join
 
 import polars as pl
 from datasets import Dataset
 from numpy import argmax
 from sklearn.metrics import precision_recall_fscore_support
-from transformers import Trainer, TrainingArguments
+from transformers import TrainingArguments
 
 from mapnet.refinenet import get_refinenet_dataset, load_model
 from mapnet.refinenet.weighted_trainer import (WeightedTrainer,
@@ -51,9 +49,8 @@ def main(
     batch_size: int,
     relation: bool,
 ):
-    logger.info("Training model...")
-    output_dir = join(output_dir, get_current_date_ymd())
-    file_safety_check(output_dir)
+    ## ensure it is ok to overwrite saved model before proceeding
+    logger.info("Setting up model/dataset for training...")
     ## initiate model and tokenizer
     model, tokenizer = load_model(model_name=model_name)
     ## load raw dataset
@@ -61,7 +58,7 @@ def main(
     ## format and put in dataset
     dataset = get_refinenet_dataset(df=df, tokenizer=tokenizer, relation=relation)
     train_dataset, val_dataset, test_dataset = split_dataset(dataset=dataset)
-    ## train model
+    ## setup trainers
     class_weights = compute_class_weights(train_dataset)
     training_args = TrainingArguments(
         output_dir=output_dir,
@@ -85,6 +82,10 @@ def main(
         compute_metrics=compute_metrics,
         class_weights=class_weights,
     )
+    output_dir = join(output_dir, get_current_date_ymd())
+    file_safety_check(output_dir)
+    logger.info("Training model...")
+    ## train model
     trainer.train()
     logger.info(f"Model training complete!")
     logger.info(f"Model has been written to {output_dir}")

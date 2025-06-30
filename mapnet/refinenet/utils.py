@@ -5,14 +5,9 @@ import polars as pl
 from datasets import Dataset
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
+from mapnet.refinenet.constants import MODELS
 
 logger = logging.getLogger(__name__)
-
-MODELS = {
-    "Bio_ClinicalBERT": "emilyalsentzer/Bio_ClinicalBERT",  ## used by BERTMAP, may be better for clinical use cases.
-    "PubMedBERT": "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext",  ## PubMedBERT, uses PubMed so may be good for research terms
-    "SapBERT": "cambridgeltl/SapBERT-from-PubMedBERT-fulltext",  ## SapBert trained with UMLS as KG
-}
 
 
 def load_model(model_name: str):
@@ -43,6 +38,8 @@ def tokenize_factory(tokenizer, evaluable: bool = True, max_length: int = 256):
 
 
 def format_mapping_input(row, k=3, relation: bool = True):
+    """Format mapping row as prompt for model."""
+
     def format_list(label, items):
         if not items:
             return f"{label}: None"
@@ -68,57 +65,8 @@ def format_mapping_input(row, k=3, relation: bool = True):
     return "\n".join(line)
 
 
-def parse_formatted_mapping_input(text, relation: bool = True):
-    lines = text.strip().splitlines()
-    result = {
-        "source name": None,
-        "source prefix": None,
-        "target name": None,
-        "target prefix": None,
-    }
-    if relation:
-        result = result | {
-            "source ancestor names": [],
-            "source descendant names": [],
-            "target ancestor names": [],
-            "target descendant names": [],
-        }
-
-    current_list_key = None
-    for line in lines:
-        line = line.strip()
-        if not line or line == "[SEP]":
-            continue
-        elif line.startswith("SOURCE_NAME:"):
-            result["source name"] = line.split(":", 1)[1].strip()
-        elif line.startswith("SOURCE_ONTOLOGY:"):
-            result["source prefix"] = line.split(":", 1)[1].strip()
-        elif line.startswith("TARGET_NAME:"):
-            result["target name"] = line.split(":", 1)[1].strip()
-        elif line.startswith("TARGET_ONTOLOGY:"):
-            result["target prefix"] = line.split(":", 1)[1].strip()
-        elif line.startswith("NAME_DISTANCE_BIN"):
-            result["edit_similarity"] = line.split(":", 1)[1].strip()
-        elif current_list_key and line.startswith("  "):  # list item
-            result[current_list_key].append(line.strip())
-        elif relation:
-            if line.startswith("SOURCE_ANCESTORS:"):
-                current_list_key = "source ancestor names"
-                result[current_list_key] = []
-            elif line.startswith("SOURCE_DESCENDANTS:"):
-                current_list_key = "source descendant names"
-                result[current_list_key] = []
-            elif line.startswith("TARGET_ANCESTORS:"):
-                current_list_key = "target ancestor names"
-                result[current_list_key] = []
-            elif line.startswith("TARGET_DESCENDANTS:"):
-                current_list_key = "target descendant names"
-                result[current_list_key] = []
-    return result
-
-
 def parse_raw_refinenet_dataset(df: pl.DataFrame, evaluable: bool, relation: bool):
-    """loads a raw dataset for refinenet"""
+    """Format a dataset of mappings for training or inference of RefineNet models."""
     lines = []
     for row in df.iter_rows(named=True):
         line = {}
@@ -131,7 +79,7 @@ def parse_raw_refinenet_dataset(df: pl.DataFrame, evaluable: bool, relation: boo
 
 
 def get_refinenet_dataset(df: pl.DataFrame, tokenizer, relation: bool):
-    """wrapper function for loading and formatting a dataset."""
+    """wrapper function for loading and formatting datasets for training and inference with a RefineNset model"""
     evaluable = "class" in df.columns  ## if have class labels can evaluate
     lines = parse_raw_refinenet_dataset(df=df, evaluable=evaluable, relation=relation)
     tokenize = tokenize_factory(

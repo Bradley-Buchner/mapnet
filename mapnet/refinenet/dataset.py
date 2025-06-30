@@ -235,9 +235,7 @@ def real_step(
     return generated_maps
 
 
-def make_synthetic_dataset(
-    dataset_def: dict, max_distance: int, output_path: str
-):
+def make_synthetic_dataset(dataset_def: dict, max_distance: int, output_path: str):
     """generate a synthetic training dataset for Refinenet models.
     Loads in known mappings both directly from the source ontologies and Semra.
     Takes broad and narrow maps from those sources directly, and uses exact mappings
@@ -273,6 +271,7 @@ def make_synthetic_dataset(
     file_safety_check(output_path)
     ## write output (to parquet file since contains nested data-types)
     generated_maps_df.write_parquet(output_path)
+
 
 def make_inference_dataset(
     mappings_path: str,

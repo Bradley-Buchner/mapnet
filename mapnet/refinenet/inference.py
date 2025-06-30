@@ -11,17 +11,16 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForSequenceClassification
 
-from mapnet.refinenet import (get_refinenet_dataset, load_model,)
-from mapnet.utils import file_safety_check
-
+from mapnet.refinenet import get_refinenet_dataset, load_model
 from mapnet.refinenet.constants import LABEL_MAP
+from mapnet.utils import file_safety_check
 
 logger = logging.getLogger(__name__)
 
 
 def load_trained_model(model_path: str):
     """load trained model from default path or one provided by user."""
-    ## get default path if not already present
+    ## get default path if not already present (takes most recently trained model)
     if model_path == "":
         model_dir = os.path.join("output", "refinenet")
         dates = os.listdir(model_dir)
@@ -35,7 +34,6 @@ def load_trained_model(model_path: str):
             checkpoints, key=lambda x: x.removeprefix("checkpoint-"), reverse=True
         )
         model_path = os.path.join(dir_path, checkpoints[0])
-
     logger.info(f"loading model from {model_path}...")
     return AutoModelForSequenceClassification.from_pretrained(model_path, num_labels=3)
 
@@ -53,20 +51,20 @@ def collate_fn(batch):
     return collated
 
 
-def get_inference_dataset(dataset):
-    return DataLoader(dataset, batch_size=16, collate_fn=collate_fn)
-
-
 def main(
     model_path: str, model_name: str, dataset_path: str, output_dir: str, relation: bool
 ):
-    logger.info("Running inference...")
+    logger.info("Loading dataset and model...")
+    ## load inference datasets
     _, tokenizer = load_model(model_name)
     df = pl.read_parquet(dataset_path)
+    dataset = get_refinenet_dataset(df=df, tokenizer=tokenizer, relation=relation)
+    loader = DataLoader(dataset, batch_size=16, collate_fn=collate_fn)
+    ## load model
     model = load_trained_model(model_path=model_path)
     model.eval()
-    dataset = get_refinenet_dataset(df=df, tokenizer=tokenizer, relation=relation)
-    loader = get_inference_dataset(dataset)
+    ## run inference
+    logger.info("Running inference...")
     rows = []
     j = 0
     for batch in tqdm(loader, desc="Running inference"):
@@ -85,11 +83,13 @@ def main(
         j += 1
     res_df = pl.DataFrame(rows)
     write_path = os.path.join(output_dir, "predictions")
+    ## write full result to parquet
     pq_path = os.path.join(write_path, "full_preds.parquet")
-    tsv_path = os.path.join(write_path, "non_nested_preds.tsv")
     file_safety_check(pq_path)
-    file_safety_check(tsv_path)
     res_df.write_parquet(pq_path)
+    ## write non-nested results to tsv
+    tsv_path = os.path.join(write_path, "non_nested_preds.tsv")
+    file_safety_check(tsv_path)
     res_df.select(
         [
             "source prefix",
