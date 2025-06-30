@@ -1,11 +1,9 @@
 """Generates synthetic broad, narrow exact match dataset from a set of true mappings"""
 
-# from itertools import combinations
 import argparse
 import os
 from itertools import combinations
 
-import numpy as np
 import polars as pl
 
 from mapnet.utils import (ancestors_within_distance,
@@ -15,37 +13,13 @@ from mapnet.utils import (ancestors_within_distance,
                           load_known_mappings_df, normalize_dataset_def, sssom_to_biomappings, load_semera_landscape_df,
                           normalized_edit_similarity, top_k_named_relations)
 
-LABEL_MAP = {
-    0: "exact match",
-    1: "broad match",
-    2: "narrow match",
-}
+from mapnet.refinenet.constants import GENERATED_DATASET_SCHEMA, INFERENCE_DATASET_SCHEMA
 
-
-GENERATED_SCHEMA = pl.Schema(
-    [
-        ("source identifier", pl.String),
-        ("source name", pl.String),
-        ("source prefix", pl.String),
-        ("target identifier", pl.String),
-        ("target name", pl.String),
-        ("target prefix", pl.String),
-        ("class", pl.Int64),
-        ("source descendant identifiers", pl.List(pl.String)),
-        ("source descendant names", pl.List(pl.String)),
-        ("target descendant identifiers", pl.List(pl.String)),
-        ("target descendant names", pl.List(pl.String)),
-        ("source ancestor identifiers", pl.List(pl.String)),
-        ("source ancestor names", pl.List(pl.String)),
-        ("target ancestor identifiers", pl.List(pl.String)),
-        ("target ancestor names", pl.List(pl.String)),   
-        ("edit_similarity", pl.String),
-    ]
-)
 
 def add_ancestors_and_descendants(
         row, name_map_func, source_graph, target_graph, max_distance, max_relations, bin_edit_similarity:bool = True, edit_cutoff:float = 0.00
 ):
+    """adds ancestor and descendant names and identifiers to a row"""
     (
         row["source descendant identifiers"],
         row["source descendant names"],
@@ -112,7 +86,7 @@ def update_synthetic_dataset(
     max_distance: int = 3,
     output_path: str = None,
 ):
-    """adds rows to a .
+    """adds rows to a synthetic dataset.
     Note:
         - distance_cutoff sets the maximum distance (ie number of edges) to use when getting ancestors or
     """
@@ -173,10 +147,10 @@ def update_synthetic_dataset(
             edit_cutoff=0.00 ## not using distance cutoff
         )
         generated_maps.append(generated_map)
-    generated_maps_df = pl.from_records(generated_maps, schema=GENERATED_SCHEMA)
+    generated_maps_df = pl.from_records(generated_maps, schema=GENERATED_DATASET_SCHEMA)
     pq_path = "generated_maps.parquet" if output_path is None else output_path
     if os.path.exists(pq_path):
-        df = pl.read_parquet(pq_path, schema=GENERATED_SCHEMA)
+        df = pl.read_parquet(pq_path, schema=GENERATED_DATASET_SCHEMA)
         generated_maps_df = generated_maps_df.vstack(df).unique()
     generated_maps_df = generated_maps_df.with_columns(
             pl.col("source name").str.to_lowercase(),
@@ -186,10 +160,7 @@ def update_synthetic_dataset(
     return generated_maps_df
 
 
-def add_known_broad_and_narrow_maps(broad_maps, narrow_maps, network_graphs, name_maps, max_distance, output_path, dataset_def) :
-    broad_maps = sssom_to_biomappings(df = broad_maps, resources = dataset_def['resources']).drop_nulls()
-    narrow_maps = sssom_to_biomappings(df = narrow_maps, resources = dataset_def['resources']).drop_nulls()
-
+def add_known_broad_and_narrow_maps(broad_maps, narrow_maps, network_graphs, name_maps, max_distance, output_path) :
     name_map_func = lambda x: get_name_from_curie(x, name_maps).lower()
     generated_maps = []
     for i, known_maps in enumerate([broad_maps, narrow_maps]):
@@ -199,7 +170,6 @@ def add_known_broad_and_narrow_maps(broad_maps, narrow_maps, network_graphs, nam
                 or row["target prefix"] not in network_graphs
             ):
                 continue
-
             target_graph = network_graphs[row["target prefix"]]
             source_graph = network_graphs[row["source prefix"]]
 
@@ -218,34 +188,49 @@ def add_known_broad_and_narrow_maps(broad_maps, narrow_maps, network_graphs, nam
             ## add  and ancestors for source to row
             generated_maps.append(generated_map)
 
-    generated_maps_df = pl.from_records(generated_maps, schema=GENERATED_SCHEMA)
+    generated_maps_df = pl.from_records(generated_maps, schema=GENERATED_DATASET_SCHEMA)
     if os.path.exists(output_path):
-        df = pl.read_parquet(output_path, schema=GENERATED_SCHEMA)
+        df = pl.read_parquet(output_path, schema=GENERATED_DATASET_SCHEMA)
         generated_maps_df = generated_maps_df.vstack(df).unique()
     generated_maps_df.write_parquet(output_path)
+
+def process_semra_dataset(dataset_def):
+    """load in known maps from semra"""
+    tags = ['skos:exactMatch', 'skos:broadMatch', 'skos:narrowMatch']
+    ## load in semra dataset
+    semra_df = load_semera_landscape_df(landscape_name='disease', resources=dataset_def['resources'], sssom=True, additional_namespaces=dict())
+    ## get and process exact matches
+    exact_semra_maps = semra_df.filter(pl.col('predicate_id').eq(tags[0])).unique()
+    exact_semra_maps = sssom_to_biomappings(df = exact_semra_maps, resources = dataset_def['resources']).drop_nulls()
+    ## get and process broad and narrow maps
+    broad_maps = semra_df.filter(pl.col('predicate_id').eq(tags[1])).unique()
+    narrow_maps = semra_df.filter(pl.col('predicate_id').eq(tags[2])).unique()
+    broad_maps = sssom_to_biomappings(df = broad_maps, resources = dataset_def['resources']).drop_nulls()
+    narrow_maps = sssom_to_biomappings(df = narrow_maps, resources = dataset_def['resources']).drop_nulls()
+    return exact_semra_maps, broad_maps, narrow_maps
 
 def make_synthetic_dataset(
     dataset_def: dict, run_args: dict, max_distance: int, output_path: str
 ):
+    ## load raw mappings from source ontologies and Semra
     from_resources_df = load_known_mappings_df(
         **dataset_def, **run_args, additional_namespaces=None
     )
-    semra_df = load_semera_landscape_df(landscape_name='disease', resources=dataset_def['resources'], sssom=True, additional_namespaces=dict())
-    tags = ['skos:exactMatch', 'skos:broadMatch', 'skos:narrowMatch']
-    exact_semra_maps = semra_df.filter(pl.col('predicate_id').eq(tags[0])).unique()
-    exact_semra_maps = sssom_to_biomappings(df = exact_semra_maps, resources = dataset_def['resources']).drop_nulls()
+    exact_semra_maps, broad_maps, narrow_maps = process_semra_dataset(dataset_def=dataset_def)
     exact_maps = from_resources_df.vstack(exact_semra_maps).unique()
+    ## load in obo graphs for each ontology as a dict
     network_graphs = {
         x: get_network_graph(**dataset_def, prefix=x) for x in dataset_def["resources"]
     }
+    ## get mappings from id to name for each ontology
+    name_maps = get_name_maps(**dataset_def)
+    
     for source_prefix, target_prefix in combinations(dataset_def["resources"], r=2):
-        ## now lets filter this for mappings from mondo to mesh
         e_maps = exact_maps.clone()
         e_maps = e_maps.filter(pl.col("source prefix").eq(source_prefix))
         e_maps = e_maps.filter(pl.col("target prefix").eq(target_prefix))
         source_graph = network_graphs[source_prefix]
         target_graph = network_graphs[target_prefix]
-        name_maps = get_name_maps(**dataset_def)
         update_synthetic_dataset(
             known_maps=e_maps,
             source_graph=source_graph,
@@ -254,11 +239,9 @@ def make_synthetic_dataset(
             max_distance=max_distance,
             output_path=output_path,
         )
-    broad_maps = semra_df.filter(pl.col('predicate_id').eq(tags[1])).unique()
-    narrow_maps = semra_df.filter(pl.col('predicate_id').eq(tags[2])).unique()
     add_known_broad_and_narrow_maps(narrow_maps=narrow_maps, broad_maps= broad_maps, dataset_def=dataset_def, network_graphs=network_graphs, name_maps=name_maps, max_distance=max_distance, output_path=output_path)
 
-def update_refinemap_dataset(
+def update_inference_dataset(
     known_maps: pl.DataFrame,
     network_graphs,
     name_maps: dict,
@@ -270,26 +253,6 @@ def update_refinemap_dataset(
     Note:
         - distance_cutoff sets the maximum distance (ie number of edges) to use when getting ancestors or
     """
-
-    consistent_schema = pl.Schema(
-        [
-            ("source identifier", pl.String),
-            ("source name", pl.String),
-            ("source prefix", pl.String),
-            ("target identifier", pl.String),
-            ("target name", pl.String),
-            ("target prefix", pl.String),
-            ("source descendant identifiers", pl.List(pl.String)),
-            ("source descendant names", pl.List(pl.String)),
-            ("target descendant identifiers", pl.List(pl.String)),
-            ("target descendant names", pl.List(pl.String)),
-            ("source ancestor identifiers", pl.List(pl.String)),
-            ("source ancestor names", pl.List(pl.String)),
-            ("target ancestor identifiers", pl.List(pl.String)),
-            ("target ancestor names", pl.List(pl.String)),
-            ("edit_similarity", pl.String),
-        ]
-    )
     name_map_func = lambda x: get_name_from_curie(x, name_maps).lower()
     generated_maps = []
     for i, row in enumerate(known_maps.iter_rows(named=True)):
@@ -311,14 +274,14 @@ def update_refinemap_dataset(
             max_distance=max_distance,
             max_relations=3,
             bin_edit_similarity=True, 
-            edit_cutoff=0.00 ## not using distance cutoff
+            edit_cutoff=edit_cutoff ## not using distance cutoff
         )
         ## add  and ancestors for source to row
         generated_maps.append(generated_map)
-    generated_maps_df = pl.from_records(generated_maps, schema=consistent_schema)
+    generated_maps_df = pl.from_records(generated_maps, schema=INFERENCE_DATASET_SCHEMA)
     pq_path = "logmap_maps.parquet" if output_path is None else output_path
     if os.path.exists(pq_path):
-        df = pl.read_parquet(pq_path, schema=consistent_schema)
+        df = pl.read_parquet(pq_path, schema=INFERENCE_DATASET_SCHEMA)
         generated_maps_df = generated_maps_df.vstack(df).unique()
     generated_maps_df = generated_maps_df.with_columns(
             pl.col("source name").str.to_lowercase(),
@@ -328,7 +291,7 @@ def update_refinemap_dataset(
     return generated_maps_df
 
 
-def make_refinenet_dataset(
+def make_inference_dataset(
     mappings_path: str,
     dataset_def: dict,
     edit_cutoff: float,
@@ -345,7 +308,7 @@ def make_refinenet_dataset(
     name_maps = get_name_maps(
         **dataset_def,
     )
-    update_refinemap_dataset(
+    update_inference_dataset(
         known_maps=known_maps,
         network_graphs=network_graphs,
         name_maps=name_maps,
@@ -379,7 +342,7 @@ def main(
     else:
         output_path = "logmap_maps.parquet" if output_path == "" else output_path
         file_safety_check(output_path)
-        make_refinenet_dataset(
+        make_inference_dataset(
             mappings_path=mappings_path,
             dataset_def=dataset_def,
             edit_cutoff=edit_cutoff,

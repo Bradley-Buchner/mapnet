@@ -11,17 +11,12 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForSequenceClassification
 
-from mapnet.refinenet import (get_refinenet_dataset, load_model,
-                              parse_formatted_mapping_input)
+from mapnet.refinenet import (get_refinenet_dataset, load_model,)
 from mapnet.utils import file_safety_check
 
-logger = logging.getLogger(__name__)
+from mapnet.refinenet.constants import LABEL_MAP
 
-LABEL_MAP = {
-    0: "exact match",
-    1: "broad match",
-    2: "narrow match",
-}
+logger = logging.getLogger(__name__)
 
 
 def load_trained_model(model_path: str):

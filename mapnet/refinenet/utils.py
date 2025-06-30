@@ -1,13 +1,10 @@
 import logging
-import os
 
-import networkx as nx
 import numpy as np
 import polars as pl
 from datasets import Dataset
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from mapnet.utils import get_name_from_curie
 
 logger = logging.getLogger(__name__)
 
