@@ -1,23 +1,30 @@
-"""Generates synthetic broad, narrow exact match dataset from a set of true mappings"""
+"""methods for generating training and inference dataset for use in RefineNet model"""
 
 import argparse
 import os
-from itertools import combinations
 
 import polars as pl
 
+from mapnet.refinenet.constants import (GENERATED_DATASET_SCHEMA,
+                                        INFERENCE_DATASET_SCHEMA)
 from mapnet.utils import (ancestors_within_distance,
                           descendants_within_distance, file_safety_check,
                           get_name_from_curie, get_name_maps,
                           get_network_graph, load_config_from_json,
-                          load_known_mappings_df, normalize_dataset_def, sssom_to_biomappings, load_semera_landscape_df,
-                          normalized_edit_similarity, top_k_named_relations)
-
-from mapnet.refinenet.constants import GENERATED_DATASET_SCHEMA, INFERENCE_DATASET_SCHEMA
+                          load_known_mappings_df, load_semera_landscape_df,
+                          normalize_dataset_def, normalized_edit_similarity,
+                          sssom_to_biomappings, top_k_named_relations)
 
 
 def add_ancestors_and_descendants(
-        row, name_map_func, source_graph, target_graph, max_distance, max_relations, bin_edit_similarity:bool = True, edit_cutoff:float = 0.00
+    row,
+    name_map_func,
+    source_graph,
+    target_graph,
+    max_distance,
+    max_relations,
+    bin_edit_similarity: bool = True,
+    edit_cutoff: float = 0.00,
 ):
     """adds ancestor and descendant names and identifiers to a row"""
     (
@@ -69,36 +76,76 @@ def add_ancestors_and_descendants(
         return None
     if bin_edit_similarity:
         if e_sim < 0.33:
-           e_sim = 'LOW'
+            e_sim = "LOW"
         elif e_sim < 0.66:
-            e_sim = 'MEDIUM'
+            e_sim = "MEDIUM"
         else:
-            e_sim = 'HIGH'
-    row['edit_similarity'] = e_sim
+            e_sim = "HIGH"
+    row["edit_similarity"] = e_sim
     return row
 
 
-def update_synthetic_dataset(
-    known_maps: pl.DataFrame,
-    source_graph,
-    target_graph,
-    name_maps: dict,
-    max_distance: int = 3,
-    output_path: str = None,
-):
-    """adds rows to a synthetic dataset.
-    Note:
-        - distance_cutoff sets the maximum distance (ie number of edges) to use when getting ancestors or
-    """
+def process_known_maps(dataset_def):
+    """load in known maps from semra"""
+    tags = ["skos:exactMatch", "skos:broadMatch", "skos:narrowMatch"]
+    cols = [
+        "subject_id",
+        "object_id",
+        "predicate_id",
+        "mapping_justification",
+    ]
+    ## load in semra dataset
+    semra_df = load_semera_landscape_df(
+        landscape_name="disease",
+        resources=dataset_def["resources"],
+        sssom=True,
+        additional_namespaces=dict(),
+    )
+    provided_df = load_known_mappings_df(
+        **dataset_def, additional_namespaces=None, sssom=True
+    )
+    df = semra_df.select(cols).vstack(provided_df.select(cols))
+    ## get and process exact matches
+    exact_maps = df.filter(pl.col("predicate_id").eq(tags[0])).unique()
+    ## get and process broad and narrow maps
+    broad_maps = df.filter(pl.col("predicate_id").eq(tags[1])).unique()
+    narrow_maps = df.filter(pl.col("predicate_id").eq(tags[2])).unique()
+    return (
+        sssom_to_biomappings(
+            df=exact_maps, resources=dataset_def["resources"]
+        ).drop_nulls(),
+        sssom_to_biomappings(
+            df=broad_maps, resources=dataset_def["resources"]
+        ).drop_nulls(),
+        sssom_to_biomappings(
+            df=narrow_maps, resources=dataset_def["resources"]
+        ).drop_nulls(),
+    )
 
+
+def synthetic_step(
+    dataset_def: dict, exact_maps: pl.DataFrame, network_graphs: dict, max_distance: int
+):
+    """Generate a dataset of synthetic broad and narrow mappings from true exact mappings"""
+    ## get mappings from id to name for each ontology
+    name_maps = get_name_maps(**dataset_def)
     name_map_func = lambda x: get_name_from_curie(x, name_maps).lower()
     class_counts = {"exact": 0, "broad": 0, "narrow": 0}
-    known_maps = known_maps.sample(fraction=1.0, shuffle=True)
+    known_maps = exact_maps.sample(fraction=1.0, shuffle=True)
     generated_maps = []
-    for  row in known_maps.iter_rows(named=True):
+    ## use exact mappings to generate a synthetic dataset with broad and narrow mappings
+    for row in known_maps.iter_rows(named=True):
         mapped = False
         target_class = min(class_counts, key=class_counts.get)
         generated_map = row.copy()
+        ## make sure this mapping is from an ontology we have graphs for
+        if (
+            row["source prefix"] not in network_graphs
+            or row["target prefix"] not in network_graphs
+        ):
+            continue
+        target_graph = network_graphs[row["target prefix"]]
+        source_graph = network_graphs[row["source prefix"]]
         ## make sure the node is in the graph before proceeding
         if generated_map["target identifier"] not in target_graph.nodes:
             continue
@@ -136,6 +183,7 @@ def update_synthetic_dataset(
             generated_map["class"] = 0
             class_counts["exact"] += 1
             mapped = True
+        ## add ancestor and descendant information to the row directly
         generated_map = add_ancestors_and_descendants(
             row=generated_map,
             name_map_func=name_map_func,
@@ -143,27 +191,24 @@ def update_synthetic_dataset(
             target_graph=target_graph,
             max_distance=max_distance,
             max_relations=3,
-            bin_edit_similarity=True, 
-            edit_cutoff=0.00 ## not using distance cutoff
+            bin_edit_similarity=True,
+            edit_cutoff=0.00,  ## not using distance cutoff
         )
         generated_maps.append(generated_map)
-    generated_maps_df = pl.from_records(generated_maps, schema=GENERATED_DATASET_SCHEMA)
-    pq_path = "generated_maps.parquet" if output_path is None else output_path
-    if os.path.exists(pq_path):
-        df = pl.read_parquet(pq_path, schema=GENERATED_DATASET_SCHEMA)
-        generated_maps_df = generated_maps_df.vstack(df).unique()
-    generated_maps_df = generated_maps_df.with_columns(
-            pl.col("source name").str.to_lowercase(),
-            pl.col("target name").str.to_lowercase(),
-            )
-    generated_maps_df.write_parquet(pq_path)
-    return generated_maps_df
+    return generated_maps
 
 
-def add_known_broad_and_narrow_maps(broad_maps, narrow_maps, network_graphs, name_maps, max_distance, output_path) :
-    name_map_func = lambda x: get_name_from_curie(x, name_maps).lower()
+def real_step(
+    minority_maps: list,
+    dataset_def: dict,
+    network_graphs: dict,
+    max_distance: int,
+):
+    """add real minority classes to the training data"""
     generated_maps = []
-    for i, known_maps in enumerate([broad_maps, narrow_maps]):
+    name_maps = get_name_maps(**dataset_def)
+    name_map_func = lambda x: get_name_from_curie(x, name_maps).lower()
+    for i, known_maps in enumerate(minority_maps):
         for row in known_maps.iter_rows(named=True):
             if (
                 row["source prefix"] not in network_graphs
@@ -181,81 +226,78 @@ def add_known_broad_and_narrow_maps(broad_maps, narrow_maps, network_graphs, nam
                 target_graph=target_graph,
                 max_distance=max_distance,
                 max_relations=3,
-                bin_edit_similarity=True, 
-                edit_cutoff=0.00 ## not using distance cutoff
+                bin_edit_similarity=True,
+                edit_cutoff=0.00,  ## not using distance cutoff
             )
-            generated_map['class'] = i + 1
+            generated_map["class"] = i + 1
             ## add  and ancestors for source to row
             generated_maps.append(generated_map)
+    return generated_maps
 
-    generated_maps_df = pl.from_records(generated_maps, schema=GENERATED_DATASET_SCHEMA)
-    if os.path.exists(output_path):
-        df = pl.read_parquet(output_path, schema=GENERATED_DATASET_SCHEMA)
-        generated_maps_df = generated_maps_df.vstack(df).unique()
-    generated_maps_df.write_parquet(output_path)
-
-def process_semra_dataset(dataset_def):
-    """load in known maps from semra"""
-    tags = ['skos:exactMatch', 'skos:broadMatch', 'skos:narrowMatch']
-    ## load in semra dataset
-    semra_df = load_semera_landscape_df(landscape_name='disease', resources=dataset_def['resources'], sssom=True, additional_namespaces=dict())
-    ## get and process exact matches
-    exact_semra_maps = semra_df.filter(pl.col('predicate_id').eq(tags[0])).unique()
-    exact_semra_maps = sssom_to_biomappings(df = exact_semra_maps, resources = dataset_def['resources']).drop_nulls()
-    ## get and process broad and narrow maps
-    broad_maps = semra_df.filter(pl.col('predicate_id').eq(tags[1])).unique()
-    narrow_maps = semra_df.filter(pl.col('predicate_id').eq(tags[2])).unique()
-    broad_maps = sssom_to_biomappings(df = broad_maps, resources = dataset_def['resources']).drop_nulls()
-    narrow_maps = sssom_to_biomappings(df = narrow_maps, resources = dataset_def['resources']).drop_nulls()
-    return exact_semra_maps, broad_maps, narrow_maps
 
 def make_synthetic_dataset(
-    dataset_def: dict, run_args: dict, max_distance: int, output_path: str
+    dataset_def: dict, max_distance: int, output_path: str
 ):
-    ## load raw mappings from source ontologies and Semra
-    from_resources_df = load_known_mappings_df(
-        **dataset_def, **run_args, additional_namespaces=None
-    )
-    exact_semra_maps, broad_maps, narrow_maps = process_semra_dataset(dataset_def=dataset_def)
-    exact_maps = from_resources_df.vstack(exact_semra_maps).unique()
+    """generate a synthetic training dataset for Refinenet models.
+    Loads in known mappings both directly from the source ontologies and Semra.
+    Takes broad and narrow maps from those sources directly, and uses exact mappings
+    to generate synthetic broad and narrow matchings.
+    Note: Tries to make classes as balanced as possible, but often there are more exact mappings.
+    """
+    ## load raw mappings from provided by ontologies and Semra
+    exact_maps, broad_maps, narrow_maps = process_known_maps(dataset_def=dataset_def)
     ## load in obo graphs for each ontology as a dict
     network_graphs = {
         x: get_network_graph(**dataset_def, prefix=x) for x in dataset_def["resources"]
     }
-    ## get mappings from id to name for each ontology
-    name_maps = get_name_maps(**dataset_def)
-    
-    for source_prefix, target_prefix in combinations(dataset_def["resources"], r=2):
-        e_maps = exact_maps.clone()
-        e_maps = e_maps.filter(pl.col("source prefix").eq(source_prefix))
-        e_maps = e_maps.filter(pl.col("target prefix").eq(target_prefix))
-        source_graph = network_graphs[source_prefix]
-        target_graph = network_graphs[target_prefix]
-        update_synthetic_dataset(
-            known_maps=e_maps,
-            source_graph=source_graph,
-            target_graph=target_graph,
-            name_maps=name_maps,
-            max_distance=max_distance,
-            output_path=output_path,
-        )
-    add_known_broad_and_narrow_maps(narrow_maps=narrow_maps, broad_maps= broad_maps, dataset_def=dataset_def, network_graphs=network_graphs, name_maps=name_maps, max_distance=max_distance, output_path=output_path)
+    ## add synthetic broad and narrow mappings
+    generated_maps = synthetic_step(
+        dataset_def=dataset_def,
+        exact_maps=exact_maps,
+        network_graphs=network_graphs,
+        max_distance=max_distance,
+    )
+    ## add any real examples of the minority classes to the training data to improve signal
+    generated_maps += real_step(
+        minority_maps=[broad_maps, narrow_maps],
+        dataset_def=dataset_def,
+        network_graphs=network_graphs,
+        max_distance=max_distance,
+    )
+    ## read the maps into a polars datafarme
+    generated_maps_df = pl.from_records(
+        generated_maps, schema=GENERATED_DATASET_SCHEMA
+    ).unique()
+    ## define the output path and confirm with the user it is ok to overwrite an existing one
+    output_path = "generated_maps.parquet" if output_path == "" else output_path
+    file_safety_check(output_path)
+    ## write output (to parquet file since contains nested data-types)
+    generated_maps_df.write_parquet(output_path)
 
-def update_inference_dataset(
-    known_maps: pl.DataFrame,
-    network_graphs,
-    name_maps: dict,
-    max_distance: int = 3,
-    output_path: str = None,
-    edit_cutoff:float = 0.00
+def make_inference_dataset(
+    mappings_path: str,
+    dataset_def: dict,
+    edit_cutoff: float,
+    max_distance: int,
+    output_path: str,
 ):
-    """takes a set of mappings and prepares it for use with refinemap models, will add ancestors and descendants
-    Note:
-        - distance_cutoff sets the maximum distance (ie number of edges) to use when getting ancestors or
-    """
+    ## read in base of inference dataset
+    known_maps = pl.read_csv(
+        mappings_path,
+        separator="\t",
+    )
+    ## load dictionary of obo graphs
+    network_graphs = {
+        x: get_network_graph(**dataset_def, prefix=x) for x in dataset_def["resources"]
+    }
+    ## get name maps
+    name_maps = get_name_maps(
+        **dataset_def,
+    )
     name_map_func = lambda x: get_name_from_curie(x, name_maps).lower()
     generated_maps = []
-    for i, row in enumerate(known_maps.iter_rows(named=True)):
+    ## format the dataset
+    for row in known_maps.iter_rows(named=True):
         if (
             row["source prefix"] not in network_graphs
             or row["target prefix"] not in network_graphs
@@ -273,49 +315,15 @@ def update_inference_dataset(
             target_graph=target_graph,
             max_distance=max_distance,
             max_relations=3,
-            bin_edit_similarity=True, 
-            edit_cutoff=edit_cutoff ## not using distance cutoff
+            bin_edit_similarity=True,
+            edit_cutoff=edit_cutoff,  ## not using distance cutoff
         )
-        ## add  and ancestors for source to row
         generated_maps.append(generated_map)
     generated_maps_df = pl.from_records(generated_maps, schema=INFERENCE_DATASET_SCHEMA)
-    pq_path = "logmap_maps.parquet" if output_path is None else output_path
-    if os.path.exists(pq_path):
-        df = pl.read_parquet(pq_path, schema=INFERENCE_DATASET_SCHEMA)
-        generated_maps_df = generated_maps_df.vstack(df).unique()
-    generated_maps_df = generated_maps_df.with_columns(
-            pl.col("source name").str.to_lowercase(),
-            pl.col("target name").str.to_lowercase(),
-            )
-    generated_maps_df.write_parquet(pq_path)
-    return generated_maps_df
-
-
-def make_inference_dataset(
-    mappings_path: str,
-    dataset_def: dict,
-    edit_cutoff: float,
-    max_distance: int,
-    output_path: str,
-):
-    known_maps = pl.read_csv(
-        mappings_path,
-        separator="\t",
-    )
-    network_graphs = {
-        x: get_network_graph(**dataset_def, prefix=x) for x in dataset_def["resources"]
-    }
-    name_maps = get_name_maps(
-        **dataset_def,
-    )
-    update_inference_dataset(
-        known_maps=known_maps,
-        network_graphs=network_graphs,
-        name_maps=name_maps,
-        max_distance=max_distance,
-        output_path=output_path,
-        edit_cutoff = edit_cutoff
-    )
+    output_path = "logmap_maps.parquet" if output_path is None else output_path
+    file_safety_check(output_path)
+    ## write output (to parquet file since contains nested data-types)
+    generated_maps_df.write_parquet(output_path)
 
 
 def main(
@@ -326,22 +334,17 @@ def main(
     mappings_path: str,
     edit_cutoff: float,
 ):
+    """dispatch methods to either generate a dataset for training or inference"""
     config = load_config_from_json(config_path=config_path)
     dataset_def = config["dataset_def"]
-    run_args = config["run_args"]
     dataset_def = normalize_dataset_def(dataset_def=dataset_def)
     if synthetic:
-        output_path = "generated_maps.parquet" if output_path == "" else output_path
-        file_safety_check(output_path)
         make_synthetic_dataset(
             dataset_def=dataset_def,
-            run_args=run_args,
             max_distance=max_distance,
             output_path=output_path,
         )
     else:
-        output_path = "logmap_maps.parquet" if output_path == "" else output_path
-        file_safety_check(output_path)
         make_inference_dataset(
             mappings_path=mappings_path,
             dataset_def=dataset_def,
